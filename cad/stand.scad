@@ -37,10 +37,9 @@ base_t       = 8.0;   // 底板厚度。要夠高才容得下前緣的棘齒紋
 vent_dia     = 0;     // 背板中央開孔直徑；0 = 不開
 
 /* [外壁開口] */
-// "arcs" = 只保留三段支撐弧，上半部全開（安全預設：鋁殼側面的
-//          PWR / BOOT / USB-C 角向位置未實測，整圈壁可能壓到按鈕）
-// "full" = 完整外圈，再依 port_cuts 逐一開槽（量完角度後改用這個）
-rim_mode = "arcs";
+// "arcs" = 只保留三段支撐弧，上半部全開（不知道開孔位置時的安全選擇）
+// "full" = 完整外圈，再依 port_cuts 逐一開槽（開孔位置已實測，用這個）
+rim_mode = "full";
 
 // 角度慣例：0 = 螢幕正上方（12 點鐘），順時針為正。
 // [中心角度, 開口跨度]
@@ -50,12 +49,25 @@ arc_gaps = [
     [ 232,  35],  // 左側
 ];
 
-// rim_mode = "full" 時使用。角度是待實測的佔位值，不要直接照印。
+// rim_mode = "full" 時使用。[中心角度, 開孔實測寬度 mm] —— 寫 mm 而不是角度，
+// 因為卡尺量出來就是 mm，換算交給程式。
+//
+// 實測值（螢幕正上方 0°，順時針為正）：
 port_cuts = [
-    [ 180, 22],  // USB-C
-    [ 135, 16],  // PWR
-    [ 225, 16],  // BOOT / RESET
+    [  45, 20],  // BOOT / RESET 按鈕
+    [  90, 21],  // USB-C
+    [ 135, 10],  // PWR
+    [ 180, 15],  // 喇叭出音孔 —— 不開的話聲音會被悶住
+    [ 270, 15],  // SD 卡
 ];
+
+// 開槽比開孔每側多讓這麼多，讓插頭與手指進得去。
+//
+// 上限就是 1.0：按鈕與 USB-C 中心只差 45°（約 24mm），扣掉各自半寬只剩
+// 3.45mm，每側再讓 2mm 兩個槽就會重疊、中間那道壁直接消失。
+// 目前 1.0 之下該處壁厚 1.45mm（0.4mm 噴嘴約 3.6 條線），印得出來但偏細，
+// 斷掉的話把這兩筆合併成一個 [67, 45] 的槽即可。
+port_margin = 1.0;
 
 /* [棘齒紋] */
 // 底座前緣下方切一排 V 形槽，取 Beyblade 棘輪的意象。
@@ -123,10 +135,18 @@ module vent_cut() {
 }
 
 module gap_cuts() {
-    gaps = (rim_mode == "full") ? port_cuts : arc_gaps;
-    for (g = gaps)
-        translate([0, 0, floor_t])
-            pie(g[0], g[1], outer_dia, recess_depth + 1);
+    if (rim_mode == "full") {
+        // 開孔在本體側面，所以用 body_dia 的周長換算 mm -> 角度。
+        circumference = PI * body_dia;
+        for (p = port_cuts)
+            translate([0, 0, floor_t])
+                pie(p[0], (p[1] + 2 * port_margin) / circumference * 360,
+                    outer_dia, recess_depth + 1);
+    } else {
+        for (g = arc_gaps)
+            translate([0, 0, floor_t])
+                pie(g[0], g[1], outer_dia, recess_depth + 1);
+    }
 }
 
 // ---------------------------------------------------------------- 擺位
