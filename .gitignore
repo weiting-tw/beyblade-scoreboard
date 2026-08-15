@@ -31,3 +31,6 @@ dependencies.lock
 tools/node_modules/
 tools/package-lock.json
 tools/package.json
+
+# OpenSCAD 產出的 STL。原始碼是 cad/*.scad，STL 隨時可以重新 render。
+cad/out/
