@@ -28,6 +28,9 @@ AppSettings defaultSettings() {
     s.volume = 75;
     s.sleepSec = 0;  // 第一版預設不自動休眠，避免比賽中途熄屏
     s.enableVibration = false;
+    s.enableAnnounce = true;
+    s.enableBatteryBadge = true;
+    s.enableGestures = true;
     return s;
 }
 

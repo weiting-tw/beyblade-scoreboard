@@ -15,10 +15,13 @@ namespace bey {
 constexpr int kMaxHistory = 20;
 
 // blob 版本識別。改動下列 struct 版面時務必 +1，否則會讀到舊版亂數。
+// v5：一次補齊勝利語音播報、電量徽章、手勢操作三個開關，外加預留空間。
+//     這三項是分批實作的，但欄位一起加 —— 每升一次版使用者的賽制、亮度、
+//     音量、玩家名稱就會全部回預設，分三次升等於清三次設定。
 // v4：新增 volume 欄位（struct 版面改變，必須升版）。
 // v3：預設賽制從 3 分改為 4 分。純粹改預設值不需要動版面，但不升版的話
 //     NVS 裡存的舊值會蓋過新預設，使用者永遠看不到新的預設。
-constexpr uint32_t kSettingsMagic = 0x42455904;  // BEY + v4
+constexpr uint32_t kSettingsMagic = 0x42455905;  // BEY + v5
 
 struct AppSettings {
     uint32_t magic;
@@ -28,6 +31,10 @@ struct AppSettings {
     uint8_t volume;      // 0..100，喇叭音量
     uint16_t sleepSec;   // 0 = 不自動休眠
     bool enableVibration;
+    bool enableAnnounce;      // 勝利語音播報
+    bool enableBatteryBadge;  // 狀態列電量徽章
+    bool enableGestures;      // 上下滑與邊緣旋轉手勢
+    uint8_t reserved[5];      // 下次加欄位時從這裡取，可免去再升一次版
 };
 
 AppSettings defaultSettings();
