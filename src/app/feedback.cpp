@@ -54,8 +54,11 @@ constexpr float kAmplitude = 0.28f;
 QueueHandle_t s_queue = nullptr;
 TaskHandle_t s_task = nullptr;
 
-// 一次處理 256 frame（16ms）。stereo 16bit -> 1KB，放 static 不吃堆疊。
-constexpr int kChunkFrames = 256;
+// 一次處理 512 frame（32ms）。I2S 的 DMA 只有 6 x 240 = 1440 frame（90ms），
+// 而且 auto_clear = true —— 餵不及時它會直接輸出靜音，聽起來就是斷音。
+// 寫得大塊一點可以減少呼叫次數、拉開與 underrun 的距離。
+// stereo 16bit -> 2KB，放 static 不吃堆疊。
+constexpr int kChunkFrames = 512;
 int16_t s_chunk[kChunkFrames * 2];
 
 // --- 語音片段 ---------------------------------------------------------
@@ -228,7 +231,12 @@ void feedbackInit() {
     }
 
     // 獨立任務：合成與 I2S 寫入都會阻塞，放在 LVGL 執行緒會造成畫面卡頓。
-    if (xTaskCreatePinnedToCore(audioTask, "sfx", 4096, nullptr, 2, &s_task, 0) !=
+    //
+    // 優先權 6 是刻意高於 esp-sr 的 feed/detect 任務（都是 5）。
+    // 音效播放是硬即時：錯過 DMA 期限，auto_clear 會補靜音，立刻聽得出斷音；
+    // 語音辨識晚幾毫秒則完全無感。原本設 2 會被 core 0 上的 SR Feed
+    // （跑 AFE 前處理，很吃 CPU）餓死，播出來的語音斷斷續續。
+    if (xTaskCreatePinnedToCore(audioTask, "sfx", 4096, nullptr, 6, &s_task, 0) !=
         pdPASS) {
         Serial.println("[feedback] 建立音效任務失敗");
         s_task = nullptr;

@@ -81,7 +81,12 @@ def resample(path):
     os.close(fd)
     try:
         subprocess.run(
-            ["ffmpeg", "-y", "-i", path, "-ar", str(SAMPLE_RATE),
+            # 22050 -> 16000 是非整數比，預設的 swr 濾波器（filter_size 32）
+            # 會留下可聽見的混疊。拉長濾波器並把截止頻率壓到 0.95 奈奎斯特，
+            # 換取乾淨的降取樣。這台 ffmpeg 沒編進 soxr，只能調 swr。
+            ["ffmpeg", "-y", "-i", path,
+             "-af", "aresample=resampler=swr:filter_size=256:cutoff=0.95",
+             "-ar", str(SAMPLE_RATE),
              "-ac", "1", "-sample_fmt", "s16", out],
             check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
@@ -110,6 +115,23 @@ def trim_silence(pcm, threshold=300):
     start = max(0, start - pad)
     end = min(len(a), end + pad)
     return a[start:end].tobytes()
+
+
+def fade_edges(pcm, ms=8):
+    """頭尾各做幾毫秒淡入淡出。
+
+    去靜音是硬切，切點的振幅不一定為零；直接播會有「喀」聲，
+    在小喇叭上比語音本身還突兀。
+    """
+    a = array.array("h")
+    a.frombytes(pcm)
+    n = SAMPLE_RATE * ms // 1000
+    n = min(n, len(a) // 2)
+    for i in range(n):
+        g = i / n
+        a[i] = int(a[i] * g)
+        a[len(a) - 1 - i] = int(a[len(a) - 1 - i] * g)
+    return a.tobytes()
 
 
 def normalize(pcm, peak_ratio=0.85):
@@ -147,8 +169,10 @@ def main():
     ap.add_argument("--engine", choices=["piper", "say"], default="piper")
     ap.add_argument("--voice", default=None,
                     help="piper 的模型名或 say 的人聲名")
-    ap.add_argument("--slow", type=float, default=1.35,
-                    help="越大唸越慢（piper 的 length-scale）")
+    # 1.0 是模型的自然語速。拉太大會把音素整個撐開，聽起來拖沓不自然
+    # （試過 1.35，使用者回報「有點怪、不夠順暢」）。1.1 只是稍微放慢。
+    ap.add_argument("--slow", type=float, default=1.1,
+                    help="越大唸越慢（piper 的 length-scale，1.0 = 自然語速）")
     args = ap.parse_args()
 
     if args.engine == "piper":
@@ -180,7 +204,8 @@ def main():
         for name, text in CLIPS:
             # 先正規化再去靜音：反過來的話門檻是相對於未放大的訊號，
             # 會把真正的尾音當成靜音切掉（實測「Two」被砍到只剩 0.16 秒）。
-            pcm = trim_silence(normalize(synth(text, voice, args.slow)))
+            pcm = fade_edges(trim_silence(normalize(
+                synth(text, voice, args.slow))))
             write_c(name, text, pcm, c)
             h.write(f"extern const int16_t {name}[];\n"
                     f"extern const unsigned {name}_len;\n")
