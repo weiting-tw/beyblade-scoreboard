@@ -450,6 +450,30 @@ static void test_draw_bitmap(esp_lcd_panel_handle_t panel_handle)
 }
 
 esp_lcd_panel_handle_t panel_handle = NULL;
+
+// --- 繪圖傳輸完成通知 ---------------------------------------------------
+// 原始碼是 .on_color_trans_done = NULL，等於沒有人知道 DMA 何時真的結束。
+// 呼叫端（LVGL_Driver）因此只能在 draw_bitmap 回來後立刻宣告完成，
+// 而那時傳輸還在進行，緩衝區會被覆寫 -> 破圖。這裡補上真正的完成通知。
+static void (*s_flushDoneCb)(void *) = NULL;
+static void *s_flushDoneCtx = NULL;
+
+static bool lcd_on_color_trans_done(esp_lcd_panel_io_handle_t io,
+                                    esp_lcd_panel_io_event_data_t *edata,
+                                    void *user_ctx) {
+  (void)io;
+  (void)edata;
+  (void)user_ctx;
+  if (s_flushDoneCb != NULL) {
+    s_flushDoneCb(s_flushDoneCtx);
+  }
+  return false;  // 不需要喚醒更高優先權的任務
+}
+
+void LCD_setFlushDoneCallback(void (*cb)(void *), void *ctx) {
+  s_flushDoneCtx = ctx;
+  s_flushDoneCb = cb;
+}
 int QSPI_Init(void){
   static const spi_bus_config_t host_config = {            
     .data0_io_num = ESP_PANEL_LCD_SPI_IO_DATA0,                    
@@ -476,8 +500,9 @@ int QSPI_Init(void){
     .dc_gpio_num = -1,                  
     .spi_mode = ESP_PANEL_LCD_SPI_MODE,                      
     .pclk_hz = 5 * 1000 * 1000,       
-    .trans_queue_depth = ESP_PANEL_LCD_SPI_TRANS_QUEUE_SZ,            
-    .on_color_trans_done = NULL,                            
+    .trans_queue_depth = ESP_PANEL_LCD_SPI_TRANS_QUEUE_SZ,
+    .on_color_trans_done = lcd_on_color_trans_done,   // 原本是 NULL，見上方說明
+
     .user_ctx = NULL,                   
     .lcd_cmd_bits = ESP_PANEL_LCD_SPI_CMD_BITS,                 
     .lcd_param_bits = ESP_PANEL_LCD_SPI_PARAM_BITS,                

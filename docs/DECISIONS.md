@@ -142,9 +142,47 @@ python3 tools/gen_fonts.py --list   # 只列出收錄的字與出處
 
 以下是讀官方程式碼時發現、但**沒有實機可以確認**的疑點。第一次燒錄時請特別留意：
 
-### R1. `full_refresh = 1` 搭配 1/10 螢幕大小的緩衝區
+### R1（已解決）：按按鈕破圖 —— 非同步 flush 沒有等 DMA 完成
 
-官方 `LVGL_Driver.cpp` 設定 `disp_drv.full_refresh = 1`，但繪圖緩衝區只有 `LCD_WIDTH * LCD_HEIGHT / 10`。LVGL 8 的 `full_refresh` 通常要求緩衝區等於整個螢幕。這段是官方原樣保留的程式碼，若實機出現畫面撕裂或只更新局部，先試著把 `full_refresh` 改成 0。
+**症狀**：點按鈕時畫面出現破圖。
+
+**當初的猜測是錯的。** 原本懷疑是官方設定 `disp_drv.full_refresh = 1` 但繪圖緩衝區
+只有螢幕的 1/10 所致。實際查證後發現 LVGL 8.4 在 `lv_disp_drv_register()` 裡就會
+**靜默把 `full_refresh` 改回 0** 並印出警告（`lv_hal_disp.c:202`），
+所以一直跑的都是局部刷新，那個設定根本沒生效。
+
+**真正的原因**是官方 BSP 少了一道同步：
+
+```c
+// Display_ST77916.cpp
+.on_color_trans_done = NULL,          // 沒有人知道 DMA 何時真的結束
+.trans_queue_depth = 10,
+
+// LVGL_Driver.cpp
+void Lvgl_Display_LCD(...) {
+  LCD_addWindow(...);                 // esp_lcd_panel_draw_bitmap()：非同步，排隊就返回
+  lv_disp_flush_ready(disp_drv);      // 卻立刻宣告「緩衝區可以重用了」
+}
+```
+
+`esp_lcd_panel_draw_bitmap()` 把 SPI 傳輸排進佇列（深度 10）就返回，DMA 還在讀那塊
+緩衝區。但 `lv_disp_flush_ready()` 已經告訴 LVGL 可以覆寫，於是 LVGL 把還在傳輸中的
+緩衝區拿去畫下一幀。更糟的是 `LCD_addWindow()` 會對緩衝區**原地**做位元組交換，
+等於在傳輸途中改資料。
+
+按按鈕時的重繪面積小、頻率高，最容易撞上這個競態，所以症狀是「點按鈕才破」。
+
+**修法**（標準的 esp_lcd + LVGL 做法）：
+
+1. `Display_ST77916.cpp`：把 `.on_color_trans_done` 接上真正的回呼，
+   並提供 `LCD_setFlushDoneCallback()` 讓上層註冊
+2. `LVGL_Driver.cpp`：從 flush 函式移除 `lv_disp_flush_ready()`，
+   改由傳輸完成回呼觸發
+3. `disp_drv.full_refresh` 直接寫 0，讓程式碼與實際行為一致
+
+**驗證**：加臨時計數器，強制每秒整頁重畫，觀察到穩定 +20/2 秒
+（= 每次整頁 10 個區塊 × 每秒 1 次）。這同時排除了另一個風險 ——
+若回呼從未觸發，LVGL 會永遠等待 flush_ready、畫面直接凍結，那比破圖更糟。
 
 ### R2. 繪圖緩衝區配置在內部 SRAM
 

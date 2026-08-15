@@ -16,10 +16,24 @@ static lv_color_t buf2[ LVGL_BUF_LEN];
     Displays LVGL content on the LCD
     This function implements associating LVGL data to the LCD screen
 */
+/* 這裡刻意**不**呼叫 lv_disp_flush_ready()。
+ *
+ * LCD_addWindow() 底下是 esp_lcd_panel_draw_bitmap()，非同步：把 SPI 傳輸排進
+ * 佇列就返回。原始碼在此立刻宣告 flush 完成，LVGL 於是把還在 DMA 中的緩衝區
+ * 拿去畫下一幀，而 LCD_addWindow 又會對緩衝區原地做位元組交換 ——
+ * 兩者疊加就是按按鈕時的破圖。
+ *
+ * 正確做法是等 on_color_trans_done 真的觸發，見下方 lvgl_flush_done()。
+ */
 void Lvgl_Display_LCD( lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *color_p )
 {
   LCD_addWindow(area->x1, area->y1, area->x2, area->y2, ( uint16_t *)&color_p->full);
-  lv_disp_flush_ready( disp_drv );
+}
+
+/* 由 SPI 傳輸完成中斷呼叫。只能做極輕量的事 —— lv_disp_flush_ready 僅是清旗標。*/
+static void lvgl_flush_done(void *ctx)
+{
+  lv_disp_flush_ready((lv_disp_drv_t *)ctx);
 }
 /*Read the touchpad*/
 void Lvgl_Touchpad_Read( lv_indev_drv_t * indev_drv, lv_indev_data_t * data )
@@ -61,9 +75,16 @@ void Lvgl_Init(void)
   disp_drv.hor_res = LCD_WIDTH;
   disp_drv.ver_res = LCD_HEIGHT;
   disp_drv.flush_cb = Lvgl_Display_LCD;
-  disp_drv.full_refresh = 1;                    /**< 1: Always make the whole screen redrawn*/
+  /* 原始碼寫 full_refresh = 1，但 LVGL 8.4 會在 lv_disp_drv_register() 裡把它
+   * 改回 0 並印出警告 —— full_refresh 要求繪圖緩衝區至少和螢幕一樣大，而
+   * LVGL_BUF_LEN 只有螢幕的 1/10。實際跑的一直是局部刷新。
+   * 這裡直接寫 0，讓程式碼與實際行為一致，不要留一個會被靜默推翻的設定。 */
+  disp_drv.full_refresh = 0;
   disp_drv.draw_buf = &draw_buf;
   lv_disp_drv_register( &disp_drv );
+
+  /* disp_drv 是 static，位址在整個程式生命週期內都有效，可以安全地交給中斷回呼。*/
+  LCD_setFlushDoneCallback(lvgl_flush_done, &disp_drv);
 
   /*Initialize the (dummy) input device driver*/
   static lv_indev_drv_t indev_drv;

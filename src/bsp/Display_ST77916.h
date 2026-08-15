@@ -40,6 +40,14 @@ void ST77916_Init();
 void LCD_Init();
 void LCD_addWindow(uint16_t Xstart, uint16_t Ystart, uint16_t Xend, uint16_t Yend,uint16_t* color);
 
+// LCD_addWindow() 走 esp_lcd_panel_draw_bitmap()，那是**非同步**的：把 SPI
+// 傳輸排進佇列就返回，DMA 還在讀那塊緩衝區。呼叫端必須等這個回呼觸發，
+// 才能宣告緩衝區可以重複使用（LVGL 的 lv_disp_flush_ready 就掛在這裡）。
+// 沒有這道同步的話，LVGL 會在 DMA 進行中覆寫緩衝區 -> 畫面破圖。
+//
+// 回呼在 SPI 中斷情境中執行，裡面只能做極輕量的事。
+void LCD_setFlushDoneCallback(void (*cb)(void*), void* ctx);
+
 // backlight
 void Backlight_Init();
 void Set_Backlight(uint8_t Light);  
