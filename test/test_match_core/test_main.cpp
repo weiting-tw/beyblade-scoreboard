@@ -28,9 +28,11 @@ void tearDown(void) {}
 
 // --- 預設值 --------------------------------------------------------------
 
-void test_default_config_is_three_point_match(void) {
+void test_default_config_is_four_point_match(void) {
+    // Beyblade X 常規賽制是 4 分制，改這個預設要記得同步升 kSettingsMagic，
+    // 否則 NVS 裡的舊值會蓋過新預設。
     const MatchConfig c = defaultConfig();
-    TEST_ASSERT_EQUAL_INT(3, c.targetScore);
+    TEST_ASSERT_EQUAL_INT(4, c.targetScore);
     TEST_ASSERT_EQUAL_INT(0, c.maxRounds);
     TEST_ASSERT_EQUAL_STRING("P1", c.p1Name);
     TEST_ASSERT_EQUAL_STRING("P2", c.p2Name);
@@ -247,6 +249,10 @@ void test_max_rounds_ends_match_on_points(void) {
 void test_custom_player_names(void) {
     Match m;
     MatchConfig cfg = defaultConfig();
+    // 明確指定 3 分制，讓下方一記 Xtreme(+3) 就結束比賽。
+    // 原本這裡依賴「預設就是 3 分」，預設改成 4 分後整個測試就失效了 ——
+    // 這個測試要驗的是名稱，不該綁在賽制預設值上。
+    cfg.targetScore = 3;
     std::snprintf(cfg.p1Name, kNameLen, "Weiting");
     std::snprintf(cfg.p2Name, kNameLen, "Opponent");
     m.configure(cfg, defaultRuleSet());
@@ -269,7 +275,7 @@ void test_reset_clears_everything(void) {
 int main(int, char**) {
     UNITY_BEGIN();
 
-    RUN_TEST(test_default_config_is_three_point_match);
+    RUN_TEST(test_default_config_is_four_point_match);
     RUN_TEST(test_default_rules_are_1_2_3);
     RUN_TEST(test_fresh_match_is_zeroed);
 

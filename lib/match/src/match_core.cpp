@@ -40,9 +40,9 @@ RuleSet defaultRuleSet() {
 
 MatchConfig defaultConfig() {
     MatchConfig c{};
-    c.targetScore = 3;
+    c.targetScore = 4;  // Beyblade X 常規賽制
     c.maxRounds = 0;
-    c.enableSound = false;
+    c.enableSound = true;   // 硬體有喇叭，預設就開
     c.saveHistory = true;
     setName(c.p1Name, "P1");
     setName(c.p2Name, "P2");

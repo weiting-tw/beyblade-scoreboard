@@ -11,6 +11,7 @@
 #include "app/app.h"
 #include "app/feedback.h"
 #include "ui/ui.h"
+#include "audio/audio_bus.h"
 #include "voice/voice.h"
 
 void setup() {
@@ -23,6 +24,9 @@ void setup() {
     Lvgl_Init();
 
     // --- 應用層 ---
+    // 音訊匯流排要先於語音與音效：兩者共用同一條 I2S。
+    bey::audioBusBegin();
+
     bey::g_store.begin();
     Set_Backlight(bey::g_store.settings().brightness);
     bey::applySettingsToMatch();

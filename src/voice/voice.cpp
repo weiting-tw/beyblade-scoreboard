@@ -5,24 +5,12 @@
 
 #include <cstring>
 
-#include "ESP_I2S.h"
+#include "../audio/audio_bus.h"
 #include "bey_sr.h"
-#include "es7210.h"
 
 namespace bey {
 namespace {
 
-// I2S 與 I2C 腳位取自官方範例 06_esp_sr。
-constexpr gpio_num_t kI2sMclk = GPIO_NUM_2;
-constexpr gpio_num_t kI2sBclk = GPIO_NUM_48;
-constexpr gpio_num_t kI2sLrck = GPIO_NUM_38;
-constexpr gpio_num_t kI2sDout = GPIO_NUM_47;
-constexpr gpio_num_t kI2sDin = GPIO_NUM_39;
-
-constexpr uint32_t kSampleRate = 16000;  // esp-sr 只吃 16kHz
-constexpr uint32_t kMclkMultiple = 256;
-
-I2SClass s_i2s;
 QueueHandle_t s_queue = nullptr;
 volatile VoiceState s_state = VoiceState::Disabled;
 
@@ -81,42 +69,12 @@ void buildCommandTable() {
     }
 }
 
-// --- 麥克風 -----------------------------------------------------------
-
-bool initMicrophone() {
-    es7210_dev_handle_t h = nullptr;
-    const es7210_i2c_config_t i2cCfg = {
-        .i2c_port = I2C_NUM_0,
-        .i2c_addr = ES7210_ADDRRES_00,
-    };
-    if (es7210_new_codec(&i2cCfg, &h) != ESP_OK || h == nullptr) {
-        Serial.println("[voice] ES7210 建立失敗，麥克風不可用");
-        return false;
-    }
-    // 欄位順序必須與 es7210.h 的宣告一致。
-    const es7210_codec_config_t cfg = {
-        .sample_rate_hz = kSampleRate,
-        .mclk_ratio = kMclkMultiple,
-        .i2s_format = ES7210_I2S_FMT_I2S,
-        .bit_width = ES7210_I2S_BITS_16B,
-        .mic_bias = ES7210_MIC_BIAS_2V87,
-        .mic_gain = ES7210_MIC_GAIN_30DB,
-        .flags = {.tdm_enable = false},
-    };
-    if (es7210_config_codec(h, &cfg) != ESP_OK) {
-        Serial.println("[voice] ES7210 設定失敗");
-        return false;
-    }
-    es7210_config_volume(h, 0);  // 有效範圍 -95..32 dB
-    return true;
-}
-
 // esp-sr 的 feed 任務靠這個回呼取得音訊。
 esp_err_t i2sFill(void* arg, void* out, size_t len, size_t* bytesRead,
                   uint32_t timeoutMs) {
     (void)arg;
     (void)timeoutMs;
-    const size_t got = s_i2s.readBytes(static_cast<char*>(out), len);
+    const size_t got = audioBusI2S().readBytes(static_cast<char*>(out), len);
     *bytesRead = got;
     return (got > 0) ? ESP_OK : ESP_FAIL;
 }
@@ -173,16 +131,9 @@ void onSrEvent(void* arg, bey_sr_event_t event, int commandId, int phraseId) {
 bool voiceBegin() {
     s_state = VoiceState::Disabled;
 
-    if (!initMicrophone()) {
-        return false;
-    }
-
-    s_i2s.setPins(kI2sBclk, kI2sLrck, kI2sDout, kI2sDin, kI2sMclk);
-    s_i2s.setTimeout(1000);
-    // 必須是 STEREO：ES7210 是多通道 ADC，esp-sr 的 AFE 期待雙通道輸入。
-    if (!s_i2s.begin(I2S_MODE_STD, kSampleRate, I2S_DATA_BIT_WIDTH_16BIT,
-                     I2S_SLOT_MODE_STEREO)) {
-        Serial.println("[voice] I2S 初始化失敗");
+    // I2S 與 codec 由 audio_bus 統一初始化（音效輸出共用同一條匯流排）。
+    if (!audioBusHasMic()) {
+        Serial.println("[voice] 麥克風不可用，語音辨識停用");
         return false;
     }
 

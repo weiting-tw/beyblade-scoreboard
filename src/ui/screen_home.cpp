@@ -7,12 +7,17 @@ namespace bey {
 namespace ui {
 namespace {
 
-void onStart(lv_event_t*) { showFormat(); }
-
-// 快速對戰：沿用上次存下的賽制，跳過賽制選擇。
-void onQuick(lv_event_t*) {
+// 賽制固定是 4 分制，每場都選一次分數只是多按一步。
+// 賽制選擇頁沒有刪掉，只是移出主流程 —— 從準備頁的「賽制」按鈕進得去。
+void onStart(lv_event_t*) {
     applySettingsToMatch();
     showReady();
+}
+
+// 快速對戰：連準備頁都跳過，直接進倒數。
+void onQuick(lv_event_t*) {
+    applySettingsToMatch();
+    showCountdown();
 }
 
 void onSettings(lv_event_t*) { showSettings(); }
