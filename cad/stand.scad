@@ -33,7 +33,7 @@ recess_depth = 4.0;   // 本體嵌入深度。露出 body_thick - recess_depth
 floor_t      = 3.0;   // 背板厚度
 wall         = 3.0;   // 承接環外壁厚
 foot_depth   = 42.0;  // 底座前後深度。後仰越多要越深，否則會後翻。
-base_t       = 3.0;   // 底板厚度
+base_t       = 8.0;   // 底板厚度。要夠高才容得下前緣的棘齒紋
 vent_dia     = 0;     // 背板中央開孔直徑；0 = 不開
 
 /* [外壁開口] */
@@ -56,6 +56,18 @@ port_cuts = [
     [ 135, 16],  // PWR
     [ 225, 16],  // BOOT / RESET
 ];
+
+/* [棘齒紋] */
+// 底座前緣下方切一排 V 形槽，取 Beyblade 棘輪的意象。
+// 刻意用「切」而不是「加」—— 凸出來的齒 FDM 要架支撐，切進去的槽不用，
+// 而且不影響底座強度分布。
+ratchet = true;
+ratchet_count = 5;    // 每側齒數。齒間留壁要 >1mm，太密印不出來
+ratchet_depth = 2.0;  // 切入深度
+ratchet_h = 6.0;      // 齒紋帶高度，必須小於 base_t
+// 方柱中心要放在側面平面「外側」這麼多。中心剛好落在平面上的話，方柱的角
+// 會與表面零厚度接觸，切出來的 STL 帶一堆非流形邊。
+ratchet_out = 1.0;
 
 /* [其他] */
 $fn = 120;
@@ -141,12 +153,36 @@ module foot() {
     }
 }
 
+// 底座左右側面的 V 形槽。用旋轉 45 度的方柱去切，對角線朝側面，
+// 切出來就是等腰三角形的槽口。
+//
+// 刻意放側面而不是前緣：底板半寬與承接環半徑都是 outer_dia/2，hull 出來的
+// 側面是垂直平面，位置不隨高度變，方柱中心擺在平面上就一定是「從外面切進
+// 去」。前緣則因為 hull 會往前延伸，固定的 y 會整個埋進材料裡，切出來的是
+// 內部空腔而不是槽 —— 那種 STL 是多殼非流形，切片軟體會出錯。
+module ratchet_cuts() {
+    span = foot_depth * 0.62;
+    step = span / ratchet_count;
+    // 中心外推 ratchet_out，對角線同步加大，最深處仍切入 ratchet_depth
+    edge = (ratchet_depth + ratchet_out) * 1.414;
+    for (side = [-1, 1]) {
+        for (i = [0 : ratchet_count - 1]) {
+            translate([side * (outer_dia / 2 + ratchet_out),
+                       foot_offset_y - span / 2 + step * (i + 0.5),
+                       1.0 + ratchet_h / 2])
+                rotate([0, 0, 45])
+                    cube([edge, edge, ratchet_h], center = true);
+        }
+    }
+}
+
 module stand() {
     difference() {
         union() {
             placed() disc_solid();
             foot();
         }
+        if (ratchet) ratchet_cuts();
         // 這三個切除放在最外層，foot 的凸包填進凹槽的部分才會一併挖掉
         placed() recess_cut();
         placed() vent_cut();
