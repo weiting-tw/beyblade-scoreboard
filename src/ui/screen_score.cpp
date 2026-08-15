@@ -75,8 +75,12 @@ void onReset(lv_event_t*) {
 // 覆蓋在分數上的透明長按區。
 void makeLongPressArea(lv_obj_t* parent, lv_coord_t dx, lv_event_cb_t cb) {
     lv_obj_t* area = lv_obj_create(parent);
-    lv_obj_set_size(area, 150, 110);
-    lv_obj_align(area, LV_ALIGN_CENTER, dx, -75);
+    // 原本是 150x110 @ dy -75，外角距圓心 200.8 —— 有一大塊落在面板（半徑 180）
+    // 之外，而且下緣蓋到狀態列底部（-121.5）8.5px，長按那條帶會誤加分。
+    // 收成 120x64 @ dy -60 後外角 165.9 < kSafeR(166)，範圍剛好包住比分數字。
+    // 代價：不再涵蓋上方的玩家名，長按名字不會加分了。
+    lv_obj_set_size(area, 120, 64);
+    lv_obj_align(area, LV_ALIGN_CENTER, dx, -60);
     lv_obj_set_style_bg_opa(area, LV_OPA_TRANSP, LV_PART_MAIN);
     lv_obj_set_style_border_width(area, 0, LV_PART_MAIN);
     lv_obj_clear_flag(area, LV_OBJ_FLAG_SCROLLABLE);
@@ -97,15 +101,19 @@ void showScore(Nav nav) {
     makeLabel(s, buf, &font_tc_22, colSubtle(), 0, -135);
 
     // 玩家名稱與分數
-    lv_obj_t* n1 = makeLabel(s, cfg.p1Name, &font_tc_16, colP1(), -78, -108);
-    lv_obj_set_width(n1, 140);
+    // 寬度 88 是量出來的：font_tc_16 下八個 ASCII 字元剛好 88px，六個漢字 66px。
+    // 原本設 140 是估的，容器外角距圓心 189，超出面板半徑 180（雖然文字置中後
+    // 沒被切到，超出去的是空白）。88 + dy -103 讓外角落在 166.0 = kSafeR。
+    // 更長的名字仍會被 LONG_DOT 截斷 —— 140 的時候也會，只是門檻不同。
+    lv_obj_t* n1 = makeLabel(s, cfg.p1Name, &font_tc_16, colP1(), -78, -103);
+    lv_obj_set_width(n1, 88);
     lv_label_set_long_mode(n1, LV_LABEL_LONG_DOT);
-    lv_obj_align(n1, LV_ALIGN_CENTER, -78, -108);
+    lv_obj_align(n1, LV_ALIGN_CENTER, -78, -103);
 
-    lv_obj_t* n2 = makeLabel(s, cfg.p2Name, &font_tc_16, colP2(), 78, -108);
-    lv_obj_set_width(n2, 140);
+    lv_obj_t* n2 = makeLabel(s, cfg.p2Name, &font_tc_16, colP2(), 78, -103);
+    lv_obj_set_width(n2, 88);
     lv_label_set_long_mode(n2, LV_LABEL_LONG_DOT);
-    lv_obj_align(n2, LV_ALIGN_CENTER, 78, -108);
+    lv_obj_align(n2, LV_ALIGN_CENTER, 78, -103);
 
     // 只讓「分數有變動」的那一邊彈跳。兩邊都動的話等於沒有指向性，
     // 使用者反而看不出剛才加到誰身上。
