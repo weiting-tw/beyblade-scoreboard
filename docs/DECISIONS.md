@@ -192,6 +192,40 @@ void Lvgl_Display_LCD(...) {
 
 多開了 Montserrat 20/28/36/48 四種字體（字體本身在 flash，不佔 heap），但畫面元件變多。若開機即當機或 LVGL 報 out-of-memory，先確認這個值。畫面切換一律用 `lv_scr_load_anim(..., auto_del=true)`，舊畫面會被釋放。
 
+### R5（已解決）：按按鈕必當機 —— lv_obj_set_style_transition(obj, nullptr)
+
+**症狀**：點任何按鈕 -> 畫面出現紅綠藍彩條 -> 跳回首頁。
+
+那個彩條不是顯示瑕疵，是 `Display_ST77916.cpp` 的 `test_draw_bitmap()`
+開機測試圖樣 —— 也就是說板子當機重開了，序列埠證實：
+
+```
+Guru Meditation Error: Core 1 panic(ed (LoadProhibited)
+  lv_obj_set_state (lv_obj.c:908)
+  <- lv_obj_add_state(LV_STATE_PRESSED)
+  <- indev_proc_press
+```
+
+**原因是本專案自己寫的一行**。`makeButton()` 裡曾有：
+
+```cpp
+lv_obj_set_style_transition(btn, nullptr, LV_PART_MAIN);   // 想表達「不要轉場」
+```
+
+LVGL 在狀態改變時的處理是（`lv_obj.c:908`）：
+
+```c
+if(lv_style_get_prop_inlined(style, LV_STYLE_TRANSITION, &v) != LV_STYLE_RES_FOUND) continue;
+const lv_style_transition_dsc_t *tr = v.ptr;
+for(j = 0; tr->props[j] != 0; j++) ...    // tr 是 NULL -> LoadProhibited
+```
+
+設成 `nullptr` 讓屬性變成「存在但值為 NULL」，於是 LVGL 不會走 `continue`，
+直接解參考 NULL。**要「沒有轉場」的正確做法是完全不設這個屬性。**
+
+**驗證**：在觸控讀取層注入一次合成按下／放開（走的正是當機路徑），
+修復前必當、修復後零當機。驗證碼已移除。
+
 ### R4. 觸控座標方向未驗證
 
 規格第 9 節要求確認螢幕旋轉方向與觸控座標對應。官方 `Lvgl_Touchpad_Read()` 直接把 CST816 的 x/y 餵給 LVGL，沒有做任何轉換。若實機上點左邊卻反應在右邊，校正方式見 `README.md`。

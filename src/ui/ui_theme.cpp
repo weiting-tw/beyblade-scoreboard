@@ -216,7 +216,15 @@ lv_obj_t* makeButton(lv_obj_t* parent, const char* text, lv_coord_t dx,
                               LV_PART_MAIN | LV_STATE_PRESSED);
     lv_obj_set_style_transform_width(btn, -4, LV_PART_MAIN | LV_STATE_PRESSED);
     lv_obj_set_style_transform_height(btn, -4, LV_PART_MAIN | LV_STATE_PRESSED);
-    lv_obj_set_style_transition(btn, nullptr, LV_PART_MAIN);
+    // 這裡曾經寫 lv_obj_set_style_transition(btn, nullptr, LV_PART_MAIN)，
+    // 想表達「不要轉場」—— 那會讓按下按鈕必當機。
+    // LVGL 在 lv_obj_set_state() 裡的判斷是：
+    //     if(lv_style_get_prop_inlined(style, LV_STYLE_TRANSITION, &v) != FOUND) continue;
+    //     const lv_style_transition_dsc_t *tr = v.ptr;
+    //     for(j = 0; tr->props[j] != 0; j++) ...
+    // 設成 nullptr 會讓屬性「存在但值為 NULL」，於是 LVGL 略過 continue
+    // 直接解參考 NULL -> LoadProhibited。
+    // 要「沒有轉場」的正確做法就是**完全不設這個屬性**。
 
     lv_obj_t* lbl = lv_label_create(btn);
     lv_label_set_text(lbl, text);
