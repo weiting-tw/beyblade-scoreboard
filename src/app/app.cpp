@@ -1,5 +1,7 @@
 #include "app.h"
 
+#include "../drivers/pcf85063.h"
+
 #include <cstring>
 
 namespace bey {
@@ -11,11 +13,7 @@ void applySettingsToMatch() {
     g_match.configure(s.match, s.rules);
 }
 
-uint32_t nowEpoch() {
-    // Phase 1 不接 PCF85063 RTC；歷史紀錄的 timestamp 先留 0。
-    // 接上後把這裡換成 RTC 讀值即可，其餘程式不必改。
-    return 0;
-}
+uint32_t nowEpoch() { return rtcNowEpoch(); }
 
 void recordFinishedMatch() {
     if (!g_match.finished()) {

@@ -12,6 +12,7 @@
 #include "app/feedback.h"
 #include "app/power.h"
 #include "app/screenshot.h"
+#include "drivers/pcf85063.h"
 #include "ui/ui.h"
 #include "audio/audio_bus.h"
 #include "voice/voice.h"
@@ -34,6 +35,7 @@ void setup() {
     bey::audioBusSetVolume(bey::g_store.settings().volume);
     bey::applySettingsToMatch();
     bey::feedbackInit();
+    bey::rtcBegin();
     bey::power::begin();
     bey::ui::init();
 

@@ -1,5 +1,6 @@
 // 歷史紀錄（規格第 8 節：最近 20 場）
 #include <cstdio>
+#include <ctime>
 
 #include "../app/app.h"
 #include "ui.h"
@@ -45,7 +46,21 @@ void makeRecordRow(lv_obj_t* parent, const MatchRecord& rec) {
     lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
     lv_obj_align(l, LV_ALIGN_LEFT_MID, 12, -7);
 
-    std::snprintf(buf, sizeof(buf), "%u 局", static_cast<unsigned>(rec.rounds));
+    // timestamp 為 0 代表 RTC 讀不到或時間不可信（見 pcf85063.h），
+    // 那就只顯示局數，不要印出 1970 那種一看就是壞掉的日期。
+    if (rec.timestamp != 0) {
+        const time_t t = static_cast<time_t>(rec.timestamp);
+        std::tm tm{};
+        // gmtime_r 而不是 localtime_r：存進去的已經是本地時間，
+        // 再套一次時區會整個偏掉。
+        gmtime_r(&t, &tm);
+        std::snprintf(buf, sizeof(buf), "%u 局    %02d/%02d %02d:%02d",
+                      static_cast<unsigned>(rec.rounds), tm.tm_mon + 1,
+                      tm.tm_mday, tm.tm_hour, tm.tm_min);
+    } else {
+        std::snprintf(buf, sizeof(buf), "%u 局",
+                      static_cast<unsigned>(rec.rounds));
+    }
     lv_obj_t* sub = lv_label_create(row);
     lv_label_set_text(sub, buf);
     lv_obj_set_style_text_font(sub, &font_tc_16, LV_PART_MAIN);
