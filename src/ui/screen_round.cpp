@@ -84,11 +84,13 @@ void showRound() {
                   g_match.scoreP2());
     makeLabel(s, buf, &lv_font_montserrat_48, colText(), 0, 25);
 
-    makeButton(s, "撤銷", -78, 100, 72, 48, colMuted(), onUndo, nullptr,
+    // dy 100 時三顆鈕的外角距圓心 168.4，超出 kSafeR(166)。移到 95 之後是
+    // 164.8，與準備頁同一排按鈕的位置一致。
+    makeButton(s, "撤銷", -78, 95, 72, 48, colMuted(), onUndo, nullptr,
                &font_tc_16);
-    makeButton(s, "下一局", 0, 100, 72, 48, colP2(), onNext, nullptr,
+    makeButton(s, "下一局", 0, 95, 72, 48, colP2(), onNext, nullptr,
                &font_tc_16);
-    makeButton(s, "結束", 78, 100, 72, 48, colDanger(), onEnd, nullptr,
+    makeButton(s, "結束", 78, 95, 72, 48, colDanger(), onEnd, nullptr,
                &font_tc_16);
 
     loadScreen(s, Nav::Forward);

@@ -71,10 +71,13 @@ void showWinTypeOverlay(bool forPlayer1) {
     char title[40];
     std::snprintf(title, sizeof(title), "%s 勝利方式",
                   forPlayer1 ? cfg.p1Name : cfg.p2Name);
-    lv_obj_t* t = makeLabel(o, title, &font_tc_22, col, 0, -120);
-    lv_obj_set_width(t, 240);
+    // 寬 240 @ dy -120 的外角距圓心 179.5，貼著面板邊緣（半徑 180）。
+    // 最寬的標題是八個 ASCII 字元的名字加「 勝利方式」，實測 213px，
+    // 所以容器收到 216 就夠，再把 dy 提到 -112，外角落在 165.6 < kSafeR。
+    lv_obj_t* t = makeLabel(o, title, &font_tc_22, col, 0, -112);
+    lv_obj_set_width(t, 216);
     lv_label_set_long_mode(t, LV_LABEL_LONG_DOT);
-    lv_obj_align(t, LV_ALIGN_CENTER, 0, -120);
+    lv_obj_align(t, LV_ALIGN_CENTER, 0, -112);
 
     const ResultType results[3] = {
         forPlayer1 ? ResultType::P1Normal : ResultType::P2Normal,
