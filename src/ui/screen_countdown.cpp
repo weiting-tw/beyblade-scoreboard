@@ -38,7 +38,7 @@ void tick(lv_timer_t*) {
         lv_label_set_text(s_num, buf);
         // 每個數字從 1.6 倍收縮到原尺寸，像是「砸」在畫面上。
         animPop(s_num, 410, 256, 320);
-        feedbackPlay(Sfx::Tick);
+        feedbackPlay(s_value == 2 ? Sfx::Count2 : Sfx::Count1);
         feedbackHaptic(30);
         return;
     }
@@ -101,7 +101,7 @@ void showCountdown() {
     });
     lv_anim_start(&a);
 
-    feedbackPlay(Sfx::Tick);
+    feedbackPlay(Sfx::Count3);
     feedbackHaptic(30);
 
     s_timer = lv_timer_create(tick, 1000, nullptr);

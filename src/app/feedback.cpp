@@ -29,8 +29,12 @@ struct SfxDef {
 };
 
 // 音高走向本身就在傳達語意：得分往上、撤銷往下、分數越高音階越長。
+// 有語音片段的項目，這裡的合成音只是片段缺席時的退路。
 constexpr SfxDef kSfx[] = {
     /* Tick        */ {{{880, 60}}},
+    /* Count3      */ {{{880, 60}}},
+    /* Count2      */ {{{880, 60}}},
+    /* Count1      */ {{{880, 60}}},
     /* Go          */ {{{660, 70}, {990, 70}, {1320, 160}}},
     /* ScoreNormal */ {{{988, 90}}},
     /* ScoreBurst  */ {{{988, 80}, {1319, 130}}},
@@ -41,6 +45,8 @@ constexpr SfxDef kSfx[] = {
 };
 
 constexpr int kSfxCount = sizeof(kSfx) / sizeof(kSfx[0]);
+static_assert(kSfxCount == static_cast<int>(Sfx::Count),
+              "kSfx 的筆數與順序必須與 Sfx 列舉一致");
 
 // 振幅。留很多餘裕：這顆小喇叭推太大會破音，而且音效只是提示不是主角。
 constexpr float kAmplitude = 0.28f;
@@ -59,6 +65,18 @@ int16_t s_chunk[kChunkFrames * 2];
 // 而且是中文專用，講不出 "GO SHOOT"）。
 bool getClip(Sfx sfx, const int16_t** data, unsigned* len) {
     switch (sfx) {
+        case Sfx::Count3:
+            *data = clip_three;
+            *len = clip_three_len;
+            return true;
+        case Sfx::Count2:
+            *data = clip_two;
+            *len = clip_two_len;
+            return true;
+        case Sfx::Count1:
+            *data = clip_one;
+            *len = clip_one_len;
+            return true;
         case Sfx::Go:
             *data = clip_go;
             *len = clip_go_len;

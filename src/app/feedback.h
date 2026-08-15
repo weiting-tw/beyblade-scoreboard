@@ -13,15 +13,20 @@
 
 namespace bey {
 
+// 順序必須與 feedback.cpp 的 kSfx 陣列一致（有 static_assert 把關）。
 enum class Sfx : uint8_t {
-    Tick,       // 倒數 3 / 2 / 1
-    Go,         // GO!
+    Tick,     // 通用提示音（例如設定頁調音量時的試聽）
+    Count3,   // 倒數「Three」
+    Count2,   // 「Two」
+    Count1,   // 「One」
+    Go,       // 「Go Shoot!」
     ScoreNormal,
     ScoreBurst,
     ScoreXtreme,
     Undo,
     RoundEnd,
     MatchWin,
+    Count,    // 哨兵，不是音效
 };
 
 void feedbackInit();
