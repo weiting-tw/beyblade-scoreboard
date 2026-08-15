@@ -17,6 +17,18 @@ extern const int16_t clip_one[];
 extern const unsigned clip_one_len;
 extern const int16_t clip_go[];
 extern const unsigned clip_go_len;
+extern const int16_t clip_player_one[];
+extern const unsigned clip_player_one_len;
+extern const int16_t clip_player_two[];
+extern const unsigned clip_player_two_len;
+extern const int16_t clip_normal[];
+extern const unsigned clip_normal_len;
+extern const int16_t clip_burst[];
+extern const unsigned clip_burst_len;
+extern const int16_t clip_xtreme[];
+extern const unsigned clip_xtreme_len;
+extern const int16_t clip_wins[];
+extern const unsigned clip_wins_len;
 
 #ifdef __cplusplus
 }

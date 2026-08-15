@@ -10,6 +10,41 @@
 namespace bey {
 namespace ui {
 
+namespace {
+
+Voice announceWho(ResultType r) {
+    switch (r) {
+        case ResultType::P1Normal:
+        case ResultType::P1Burst:
+        case ResultType::P1Xtreme:
+            return Voice::PlayerOne;
+        case ResultType::P2Normal:
+        case ResultType::P2Burst:
+        case ResultType::P2Xtreme:
+            return Voice::PlayerTwo;
+        default:
+            return Voice::None;  // 雙出局／無效局沒有得分者
+    }
+}
+
+Voice announceWhat(ResultType r) {
+    switch (r) {
+        case ResultType::P1Burst:
+        case ResultType::P2Burst:
+            return Voice::BurstFinish;
+        case ResultType::P1Xtreme:
+        case ResultType::P2Xtreme:
+            return Voice::XtremeFinish;
+        case ResultType::P1Normal:
+        case ResultType::P2Normal:
+            return Voice::NormalFinish;
+        default:
+            return Voice::None;
+    }
+}
+
+}  // namespace
+
 // 套用一次結果後決定下一個畫面。screen_round / screen_overlay 也會用到。
 void applyResultAndAdvance(ResultType r) {
     if (!g_match.applyResult(r)) {
@@ -33,9 +68,26 @@ void applyResultAndAdvance(ResultType r) {
     if (g_match.finished()) {
         recordFinishedMatch();
         feedbackPlay(Sfx::MatchWin);
+        // 比賽結束時只播勝者，不播這一分是怎麼拿的 —— 佇列只有三格，
+        // 得分播報 + 勝利音效 + 勝者播報會是第四個項目，剛好被丟掉；
+        // 而且到了這一刻「誰贏了」本來就比「最後一分怎麼來的」重要。
+        switch (g_match.winner()) {
+            case Winner::P1:
+                feedbackAnnounce(Voice::PlayerOne, Voice::Wins);
+                break;
+            case Winner::P2:
+                feedbackAnnounce(Voice::PlayerTwo, Voice::Wins);
+                break;
+            default:
+                break;  // 平手沒有錄對應的片段，維持只有勝利音效
+        }
         showComplete();
     } else {
-        feedbackPlay(Sfx::RoundEnd);
+        feedbackAnnounce(announceWho(r), announceWhat(r));
+        // 開了播報就不再疊局結束提示音，兩個接在一起太吵。
+        if (!g_store.settings().enableAnnounce) {
+            feedbackPlay(Sfx::RoundEnd);
+        }
         showRound();
     }
 }

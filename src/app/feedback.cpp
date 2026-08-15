@@ -52,6 +52,17 @@ static_assert(kSfxCount == static_cast<int>(Sfx::Count),
 constexpr float kAmplitude = 0.28f;
 
 QueueHandle_t s_queue = nullptr;
+
+// 佇列元素。sfx == Sfx::Count 代表這是一則播報，內容看 a / b。
+// 整句放同一個項目，佇列滿時要嘛整句丟掉、要嘛整句播完，不會播出半句。
+struct AudioMsg {
+    Sfx sfx;
+    Voice a;
+    Voice b;
+};
+
+// 播報進行中。語音辨識拿它決定要不要丟棄結果。
+volatile bool s_speaking = false;
 TaskHandle_t s_task = nullptr;
 
 // 一次處理 512 frame（32ms）。I2S 的 DMA 只有 6 x 240 = 1440 frame（90ms），
@@ -83,6 +94,37 @@ bool getClip(Sfx sfx, const int16_t** data, unsigned* len) {
         case Sfx::Go:
             *data = clip_go;
             *len = clip_go_len;
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool getVoiceClip(Voice v, const int16_t** data, unsigned* len) {
+    switch (v) {
+        case Voice::PlayerOne:
+            *data = clip_player_one;
+            *len = clip_player_one_len;
+            return true;
+        case Voice::PlayerTwo:
+            *data = clip_player_two;
+            *len = clip_player_two_len;
+            return true;
+        case Voice::NormalFinish:
+            *data = clip_normal;
+            *len = clip_normal_len;
+            return true;
+        case Voice::BurstFinish:
+            *data = clip_burst;
+            *len = clip_burst_len;
+            return true;
+        case Voice::XtremeFinish:
+            *data = clip_xtreme;
+            *len = clip_xtreme_len;
+            return true;
+        case Voice::Wins:
+            *data = clip_wins;
+            *len = clip_wins_len;
             return true;
         default:
             return false;
@@ -171,13 +213,13 @@ void flushDma() {
 }
 
 void audioTask(void*) {
-    Sfx sfx;
+    AudioMsg msg;
     bool ampOn = false;
 
     for (;;) {
         // 用逾時等待而不是無限等待：逾時代表一段時間沒有音效了，
         // 這時才把功放關掉。
-        if (xQueueReceive(s_queue, &sfx, pdMS_TO_TICKS(kAmpIdleMs)) != pdTRUE) {
+        if (xQueueReceive(s_queue, &msg, pdMS_TO_TICKS(kAmpIdleMs)) != pdTRUE) {
             if (ampOn) {
                 flushDma();
                 audioBusSpeakerEnable(false);
@@ -186,8 +228,9 @@ void audioTask(void*) {
             continue;
         }
 
-        const int idx = static_cast<int>(sfx);
-        if (idx < 0 || idx >= kSfxCount) {
+        const bool isAnnounce = (msg.sfx == Sfx::Count);
+        const int idx = static_cast<int>(msg.sfx);
+        if (!isAnnounce && (idx < 0 || idx >= kSfxCount)) {
             continue;
         }
 
@@ -202,7 +245,19 @@ void audioTask(void*) {
 
         const int16_t* clip = nullptr;
         unsigned clipLen = 0;
-        if (getClip(sfx, &clip, &clipLen)) {
+
+        if (isAnnounce) {
+            // s_speaking 要在整句播完後才放掉，否則第一段與第二段之間會有
+            // 一小段空window，語音辨識剛好在那裡收到自己講的下半句。
+            s_speaking = true;
+            const Voice parts[2] = {msg.a, msg.b};
+            for (const Voice v : parts) {
+                if (getVoiceClip(v, &clip, &clipLen)) {
+                    playPcm(clip, clipLen);
+                }
+            }
+            s_speaking = false;
+        } else if (getClip(msg.sfx, &clip, &clipLen)) {
             playPcm(clip, clipLen);
         } else {
             for (const Tone& t : kSfx[idx].tones) {
@@ -224,7 +279,7 @@ void feedbackInit() {
     }
 
     // 佇列很短：音效過期就沒有意義，堆積一串舊音效比漏掉一個更糟。
-    s_queue = xQueueCreate(3, sizeof(Sfx));
+    s_queue = xQueueCreate(3, sizeof(AudioMsg));
     if (s_queue == nullptr) {
         Serial.println("[feedback] 建立音效佇列失敗");
         return;
@@ -254,8 +309,22 @@ void feedbackPlay(Sfx sfx) {
         return;
     }
     // 佇列滿了就丟棄，絕不阻塞呼叫端（多半是 LVGL 執行緒）。
-    xQueueSend(s_queue, &sfx, 0);
+    AudioMsg msg{sfx, Voice::None, Voice::None};
+    xQueueSend(s_queue, &msg, 0);
 }
+
+void feedbackAnnounce(Voice first, Voice second) {
+    if (!g_store.settings().enableAnnounce) {
+        return;
+    }
+    if (s_queue == nullptr || first == Voice::None) {
+        return;
+    }
+    AudioMsg msg{Sfx::Count, first, second};
+    xQueueSend(s_queue, &msg, 0);
+}
+
+bool feedbackIsSpeaking() { return s_speaking; }
 
 void feedbackHaptic(uint16_t ms) {
     if (!g_store.settings().enableVibration) {

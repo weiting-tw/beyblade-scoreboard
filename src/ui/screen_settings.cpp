@@ -139,6 +139,11 @@ void onToggleSound(lv_event_t* e) {
     g_store.mutableSettings().match.enableSound =
         lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
 }
+// 「勝利語音」四個字都已經在字型子集裡（勝／利／語／音），不必重跑 gen_fonts.py。
+void onToggleAnnounce(lv_event_t* e) {
+    g_store.mutableSettings().enableAnnounce =
+        lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
+}
 void onToggleVibration(lv_event_t* e) {
     g_store.mutableSettings().enableVibration =
         lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
@@ -287,6 +292,7 @@ void showSettings() {
     makeStepperRow(cont, "音量", Field::Volume, 10);
 
     makeSwitchRow(cont, "音效", s.match.enableSound, onToggleSound);
+    makeSwitchRow(cont, "勝利語音", s.enableAnnounce, onToggleAnnounce);
     makeSwitchRow(cont, "震動", s.enableVibration, onToggleVibration);
     makeSwitchRow(cont, "保存紀錄", s.match.saveHistory, onToggleHistory);
 

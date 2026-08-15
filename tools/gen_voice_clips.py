@@ -34,11 +34,29 @@ PIPER_DATA_DIR = os.path.expanduser("~/.config/piper")
 SAMPLE_RATE = 16000
 
 # (C 識別字, 要唸的文字)
+#
+# 播報用的片段刻意只有「誰」與「什麼方式」兩類，湊成兩段一句。
+# 不錄點數：點數規則是可設定的，要涵蓋所有組合片段會膨脹，而且分數就顯示
+# 在螢幕上，播出來只是冗餘資訊，徒然拖長播報、打斷對戰節奏。
+#
+# 全部用英文而不是中文：喚醒詞與 11 個命令詞都是中文，而 AEC 是關的，
+# 播中文等於拿命令詞的聲學鄰居去餵自己的麥克風，自我誤觸發會從「幾乎不會」
+# 變成「一定要處理」。英文和中文命令詞的聲學距離遠得多。
 CLIPS = [
+    # 倒數
     ("clip_three", "Three"),
     ("clip_two", "Two"),
     ("clip_one", "One"),
     ("clip_go", "Go Shoot!"),
+    # 播報 —— 誰
+    ("clip_player_one", "Player One"),
+    ("clip_player_two", "Player Two"),
+    # 播報 —— 什麼方式
+    ("clip_normal", "Normal Finish"),
+    ("clip_burst", "Burst Finish"),
+    ("clip_xtreme", "Xtreme Finish"),
+    # 播報 —— 比賽結束
+    ("clip_wins", "Wins"),
 ]
 
 

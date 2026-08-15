@@ -51,6 +51,12 @@ void loop() {
     // 才能在 LVGL 執行緒上安全地切換畫面。
     bey::VoiceCmd cmd;
     while (bey::voicePoll(cmd)) {
+        // 播報期間收到的辨識結果一律丟棄。AEC 是關的，功放正放著英文，
+        // 麥克風聽得見自己 —— 這裡收到的東西很可能是板子自己講的。
+        // 仍然要把佇列讀空，否則播報結束後會一次湧出一串過期命令。
+        if (bey::feedbackIsSpeaking()) {
+            continue;
+        }
         bey::ui::handleVoiceCommand(cmd);
     }
 

@@ -29,10 +29,31 @@ enum class Sfx : uint8_t {
     Count,    // 哨兵，不是音效
 };
 
+// 語音播報片段。與 Sfx 分開：Sfx 是短提示音，這些是拼句子用的語音。
+enum class Voice : uint8_t {
+    None,  // 哨兵：第二段留空時用
+    PlayerOne,
+    PlayerTwo,
+    NormalFinish,
+    BurstFinish,
+    XtremeFinish,
+    Wins,
+};
+
 void feedbackInit();
 
 // 播放音效。enableSound 為 false 時直接略過。
 void feedbackPlay(Sfx sfx);
+
+// 播報一句，例如「Player One」+「Burst Finish」。
+//
+// 兩段放在同一個佇列項目而不是連送兩次：佇列只有三格，滿的時候後送的會被
+// 丟棄，分兩次送就可能只播出半句。enableAnnounce 為 false 時直接略過。
+void feedbackAnnounce(Voice first, Voice second = Voice::None);
+
+// 正在播報。語音辨識應該在這段期間丟棄結果 —— 功放正放著英文，
+// 而 AEC 是關的，麥克風聽得見自己。
+bool feedbackIsSpeaking();
 
 // 震動回饋。enableVibration 為 false 時直接略過。
 void feedbackHaptic(uint16_t ms);
