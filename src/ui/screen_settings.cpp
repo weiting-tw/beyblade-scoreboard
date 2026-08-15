@@ -19,7 +19,8 @@ namespace {
 
 enum class Field : uint8_t {
     Target,
-    Normal,
+    Spin,
+    Over,
     Burst,
     Xtreme,
     Brightness,
@@ -33,9 +34,12 @@ struct StepAction {
 };
 
 // 每個欄位一組 ±1，位址固定，可安全當成 event user_data。
+// makeStepperRow 的第四個參數是這個陣列的索引，每個欄位固定佔連續兩格
+// （先減後加）。中間插入欄位會讓後面所有索引位移，兩邊要一起改。
 const StepAction kSteps[] = {
     {Field::Target, -1},     {Field::Target, +1},
-    {Field::Normal, -1},     {Field::Normal, +1},
+    {Field::Spin, -1},       {Field::Spin, +1},
+    {Field::Over, -1},       {Field::Over, +1},
     {Field::Burst, -1},      {Field::Burst, +1},
     {Field::Xtreme, -1},     {Field::Xtreme, +1},
     {Field::Brightness, -5}, {Field::Brightness, +5},
@@ -52,8 +56,10 @@ void onScreenDel(lv_event_t*) {
 
 int8_t* pointsOf(Field f, AppSettings& s) {
     switch (f) {
-        case Field::Normal:
-            return &s.rules.rules[static_cast<int>(ResultType::P1Normal)].p1Points;
+        case Field::Spin:
+            return &s.rules.rules[static_cast<int>(ResultType::P1Spin)].p1Points;
+        case Field::Over:
+            return &s.rules.rules[static_cast<int>(ResultType::P1Over)].p1Points;
         case Field::Burst:
             return &s.rules.rules[static_cast<int>(ResultType::P1Burst)].p1Points;
         case Field::Xtreme:
@@ -107,8 +113,10 @@ void writeField(Field f, int v) {
             const int c = (v < 0) ? 0 : ((v > 9) ? 9 : v);
             *p = static_cast<int8_t>(c);
             // P1/P2 的同名結果保持對稱，否則兩位玩家規則會不一致。
-            ResultType mirror = ResultType::P2Normal;
-            if (f == Field::Burst) {
+            ResultType mirror = ResultType::P2Spin;
+            if (f == Field::Over) {
+                mirror = ResultType::P2Over;
+            } else if (f == Field::Burst) {
                 mirror = ResultType::P2Burst;
             } else if (f == Field::Xtreme) {
                 mirror = ResultType::P2Xtreme;
@@ -291,11 +299,12 @@ void showSettings() {
     lv_obj_set_scrollbar_mode(cont, LV_SCROLLBAR_MODE_AUTO);
 
     makeStepperRow(cont, "目標分數", Field::Target, 0);
-    makeStepperRow(cont, "普通勝", Field::Normal, 2);
-    makeStepperRow(cont, "爆裂勝", Field::Burst, 4);
-    makeStepperRow(cont, "XTREME", Field::Xtreme, 6);
-    makeStepperRow(cont, "亮度", Field::Brightness, 8);
-    makeStepperRow(cont, "音量", Field::Volume, 10);
+    makeStepperRow(cont, "轉停勝", Field::Spin, 2);
+    makeStepperRow(cont, "場外勝", Field::Over, 4);
+    makeStepperRow(cont, "爆裂勝", Field::Burst, 6);
+    makeStepperRow(cont, "極限勝", Field::Xtreme, 8);
+    makeStepperRow(cont, "亮度", Field::Brightness, 10);
+    makeStepperRow(cont, "音量", Field::Volume, 12);
 
     makeSwitchRow(cont, "音效", s.match.enableSound, onToggleSound);
     makeSwitchRow(cont, "勝利語音", s.enableAnnounce, onToggleAnnounce);

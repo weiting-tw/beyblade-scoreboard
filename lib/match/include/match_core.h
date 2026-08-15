@@ -26,11 +26,16 @@ enum class Winner : uint8_t {
 //
 // 規格第 5 節要求「不得硬編碼成唯一模式」：這裡只定義**有哪些結果**，
 // 每種結果各給幾分完全由 RuleSet 決定，使用者可在設定頁改。
+// 四種官方 finish（BEYBLADE X REGULATION 第 6 版）：
+//   轉停 Spin 1 分／場外 Over 2 分／爆裂 Burst 2 分／極限 Xtreme 3 分
+// 依分數由低到高排列。
 enum class ResultType : uint8_t {
-    P1Normal = 0,  // P1 普通勝利
-    P1Burst,       // P1 爆裂
-    P1Xtreme,      // P1 Xtreme Finish
-    P2Normal,
+    P1Spin = 0,  // P1 轉停勝利：對手先停止旋轉
+    P1Over,      // P1 場外勝利：對手被打進四角出場區
+    P1Burst,     // P1 爆裂勝利：對手在場上解體
+    P1Xtreme,    // P1 極限勝利：從 X 加速區高速撞出中央極限出場區
+    P2Spin,
+    P2Over,
     P2Burst,
     P2Xtreme,
     DoubleOut,  // 雙方同時出界
@@ -53,7 +58,7 @@ struct RuleSet {
     ScoreRule rules[kResultCount];
 };
 
-// 規格第 5 節的預設值：普通 +1、爆裂 +2、Xtreme +3。
+// 官方預設點數：轉停 +1、場外 +2、爆裂 +2、極限 +3。
 RuleSet defaultRuleSet();
 
 struct MatchConfig {

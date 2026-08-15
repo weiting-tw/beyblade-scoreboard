@@ -25,12 +25,14 @@ RuleSet defaultRuleSet() {
     RuleSet rs{};
     // name 會直接顯示在局結果頁。UTF-8 中文一字 3 bytes，24 bytes 的欄位
     // 足夠放「P1 爆裂勝」(3 + 9 = 12 bytes) 這種長度。
-    setRule(rs.rules[static_cast<int>(ResultType::P1Normal)], "P1 普通勝", 1, 0, true);
+    setRule(rs.rules[static_cast<int>(ResultType::P1Spin)], "P1 轉停勝", 1, 0, true);
+    setRule(rs.rules[static_cast<int>(ResultType::P1Over)], "P1 場外勝", 2, 0, true);
     setRule(rs.rules[static_cast<int>(ResultType::P1Burst)], "P1 爆裂勝", 2, 0, true);
-    setRule(rs.rules[static_cast<int>(ResultType::P1Xtreme)], "P1 Xtreme", 3, 0, true);
-    setRule(rs.rules[static_cast<int>(ResultType::P2Normal)], "P2 普通勝", 0, 1, true);
+    setRule(rs.rules[static_cast<int>(ResultType::P1Xtreme)], "P1 極限勝", 3, 0, true);
+    setRule(rs.rules[static_cast<int>(ResultType::P2Spin)], "P2 轉停勝", 0, 1, true);
+    setRule(rs.rules[static_cast<int>(ResultType::P2Over)], "P2 場外勝", 0, 2, true);
     setRule(rs.rules[static_cast<int>(ResultType::P2Burst)], "P2 爆裂勝", 0, 2, true);
-    setRule(rs.rules[static_cast<int>(ResultType::P2Xtreme)], "P2 Xtreme", 0, 3, true);
+    setRule(rs.rules[static_cast<int>(ResultType::P2Xtreme)], "P2 極限勝", 0, 3, true);
     // 雙方同時出界：本局計入局數但雙方皆不得分。
     setRule(rs.rules[static_cast<int>(ResultType::DoubleOut)], "雙方出界", 0, 0, true);
     // 無效局：不得分、也不推進局數。

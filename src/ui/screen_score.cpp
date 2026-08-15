@@ -14,11 +14,13 @@ namespace {
 
 Voice announceWho(ResultType r) {
     switch (r) {
-        case ResultType::P1Normal:
+        case ResultType::P1Spin:
+        case ResultType::P1Over:
         case ResultType::P1Burst:
         case ResultType::P1Xtreme:
             return Voice::PlayerOne;
-        case ResultType::P2Normal:
+        case ResultType::P2Spin:
+        case ResultType::P2Over:
         case ResultType::P2Burst:
         case ResultType::P2Xtreme:
             return Voice::PlayerTwo;
@@ -29,15 +31,18 @@ Voice announceWho(ResultType r) {
 
 Voice announceWhat(ResultType r) {
     switch (r) {
+        case ResultType::P1Over:
+        case ResultType::P2Over:
+            return Voice::OverFinish;
         case ResultType::P1Burst:
         case ResultType::P2Burst:
             return Voice::BurstFinish;
         case ResultType::P1Xtreme:
         case ResultType::P2Xtreme:
             return Voice::XtremeFinish;
-        case ResultType::P1Normal:
-        case ResultType::P2Normal:
-            return Voice::NormalFinish;
+        case ResultType::P1Spin:
+        case ResultType::P2Spin:
+            return Voice::SpinFinish;
         default:
             return Voice::None;
     }
@@ -51,6 +56,9 @@ void applyResultAndAdvance(ResultType r) {
         return;
     }
     switch (r) {
+        // 場外與爆裂同為 2 分，共用同一組音階；音效本來就是照分數高低設計的。
+        case ResultType::P1Over:
+        case ResultType::P2Over:
         case ResultType::P1Burst:
         case ResultType::P2Burst:
             feedbackPlay(Sfx::ScoreBurst);
@@ -103,8 +111,8 @@ void onP1Win(lv_event_t*) { showWinTypeOverlay(true); }
 void onP2Win(lv_event_t*) { showWinTypeOverlay(false); }
 
 // 長按玩家區域＝該玩家「普通勝利」，點數仍走使用者設定的規則。
-void onP1LongPress(lv_event_t*) { applyResultAndAdvance(ResultType::P1Normal); }
-void onP2LongPress(lv_event_t*) { applyResultAndAdvance(ResultType::P2Normal); }
+void onP1LongPress(lv_event_t*) { applyResultAndAdvance(ResultType::P1Spin); }
+void onP2LongPress(lv_event_t*) { applyResultAndAdvance(ResultType::P2Spin); }
 
 void onUndo(lv_event_t*) {
     if (g_match.undo()) {

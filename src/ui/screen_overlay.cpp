@@ -81,25 +81,33 @@ void showWinTypeOverlay(bool forPlayer1) {
     lv_label_set_long_mode(t, LV_LABEL_LONG_DOT);
     lv_obj_align(t, LV_ALIGN_CENTER, 0, -112);
 
-    const ResultType results[3] = {
-        forPlayer1 ? ResultType::P1Normal : ResultType::P2Normal,
+    // BEYBLADE X 的四種官方 finish，依分數由低到高。
+    // 原本只有三顆（普通／爆裂／XTREME），少了場外勝利 —— 把對手打進四角
+    // 出場區是最常見的得分方式之一，先前只能將就記成爆裂（分數同為 2，
+    // 但名稱與歷史紀錄就錯了）。
+    const ResultType results[4] = {
+        forPlayer1 ? ResultType::P1Spin : ResultType::P2Spin,
+        forPlayer1 ? ResultType::P1Over : ResultType::P2Over,
         forPlayer1 ? ResultType::P1Burst : ResultType::P2Burst,
         forPlayer1 ? ResultType::P1Xtreme : ResultType::P2Xtreme,
     };
-    const char* names[3] = {"普通", "爆裂", "XTREME"};
-    const lv_coord_t ys[3] = {-55, 5, 65};
+    const char* names[4] = {"轉停", "場外", "爆裂", "極限"};
+    // 四顆的排法：高 46（makeButton 的下限是 45）、間距 50。第一顆上緣 -97，
+    // 在標題下緣 -98.5 之下；第四顆下緣 99，在取消鈕上緣 104 之上。
+    const lv_coord_t ys[4] = {-74, -24, 26, 76};
 
-    for (int i = 0; i < 3; ++i) {
+    for (int i = 0; i < 4; ++i) {
         // 按鈕上直接顯示目前設定的點數，改過設定一眼就看得出來。
         const ScoreRule& rule = g_match.rule(results[i]);
         const int pts = forPlayer1 ? rule.p1Points : rule.p2Points;
         char label[32];
         std::snprintf(label, sizeof(label), "%s  +%d", names[i], pts);
-        makeButton(o, label, 0, ys[i], 200, 52, col, onPickResult,
+        makeButton(o, label, 0, ys[i], 200, 46, col, onPickResult,
                    reinterpret_cast<void*>(static_cast<intptr_t>(results[i])));
     }
 
-    makeButton(o, "取消", 0, 125, 120, 48, colMuted(), onCancel, nullptr,
+    // 從 125 挪到 128 給第四顆按鈕讓位。外角距圓心 163.4，仍在 kSafeR 內。
+    makeButton(o, "取消", 0, 128, 120, 48, colMuted(), onCancel, nullptr,
                &font_tc_16);
 }
 

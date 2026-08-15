@@ -1,12 +1,9 @@
-// 音效與震動的介面預留（規格第 10 節）。
+// 音效、語音播報與震動（規格第 10 節）。
 //
-// 第一版全部是 no-op：板上雖有 ES8311/ES7210 與喇叭致能腳 GPIO9，
-// 但規格明訂「不得因音訊功能影響第一版計分器穩定性」，所以只固定介面，
-// 不初始化 I2S。Phase 5 只需替換 feedback.cpp，呼叫端一行都不用改。
+// 播放跑在自己的 FreeRTOS 任務上，I2S 與 codec 由 audio/audio_bus.* 擁有。
+// 呼叫端一律非阻塞：這些函式只是把訊息丟進佇列，佇列滿了就丟棄。
 //
-// Phase 5 音訊腳位（來自規格第 10 節，尚未驗證）：
-//   Codec ES8311 / MIC ES7210 / SPK_EN GPIO9
-//   I2S MCLK 2, BCLK 48, LRCK 38, DOUT 47, DIN 39
+// 震動仍是 no-op —— 板上沒有震動馬達，要外接才能實作。
 #pragma once
 
 #include <cstdint>
@@ -34,7 +31,8 @@ enum class Voice : uint8_t {
     None,  // 哨兵：第二段留空時用
     PlayerOne,
     PlayerTwo,
-    NormalFinish,
+    SpinFinish,
+    OverFinish,
     BurstFinish,
     XtremeFinish,
     Wins,
@@ -50,10 +48,6 @@ void feedbackPlay(Sfx sfx);
 // 兩段放在同一個佇列項目而不是連送兩次：佇列只有三格，滿的時候後送的會被
 // 丟棄，分兩次送就可能只播出半句。enableAnnounce 為 false 時直接略過。
 void feedbackAnnounce(Voice first, Voice second = Voice::None);
-
-// 正在播報。語音辨識應該在這段期間丟棄結果 —— 功放正放著英文，
-// 而 AEC 是關的，麥克風聽得見自己。
-bool feedbackIsSpeaking();
 
 // 震動回饋。enableVibration 為 false 時直接略過。
 void feedbackHaptic(uint16_t ms);

@@ -38,14 +38,45 @@ void test_default_config_is_four_point_match(void) {
     TEST_ASSERT_EQUAL_STRING("P2", c.p2Name);
 }
 
-void test_default_rules_are_1_2_3(void) {
+// BEYBLADE X REGULATION 第 6 版：轉停 1、場外 2、爆裂 2、極限 3。
+void test_default_rules_match_official_points(void) {
     const RuleSet rs = defaultRuleSet();
-    TEST_ASSERT_EQUAL_INT(1, rs.rules[(int)ResultType::P1Normal].p1Points);
+    TEST_ASSERT_EQUAL_INT(1, rs.rules[(int)ResultType::P1Spin].p1Points);
+    TEST_ASSERT_EQUAL_INT(2, rs.rules[(int)ResultType::P1Over].p1Points);
     TEST_ASSERT_EQUAL_INT(2, rs.rules[(int)ResultType::P1Burst].p1Points);
     TEST_ASSERT_EQUAL_INT(3, rs.rules[(int)ResultType::P1Xtreme].p1Points);
-    TEST_ASSERT_EQUAL_INT(1, rs.rules[(int)ResultType::P2Normal].p2Points);
+    TEST_ASSERT_EQUAL_INT(1, rs.rules[(int)ResultType::P2Spin].p2Points);
+    TEST_ASSERT_EQUAL_INT(2, rs.rules[(int)ResultType::P2Over].p2Points);
     TEST_ASSERT_EQUAL_INT(2, rs.rules[(int)ResultType::P2Burst].p2Points);
     TEST_ASSERT_EQUAL_INT(3, rs.rules[(int)ResultType::P2Xtreme].p2Points);
+}
+
+// 得分方只加給自己。場外勝與爆裂勝同為 2 分，容易在表格裡貼錯行。
+void test_over_finish_scores_only_the_winner(void) {
+    const RuleSet rs = defaultRuleSet();
+    TEST_ASSERT_EQUAL_INT(0, rs.rules[(int)ResultType::P1Over].p2Points);
+    TEST_ASSERT_EQUAL_INT(0, rs.rules[(int)ResultType::P2Over].p1Points);
+
+    Match m;
+    m.start();
+    TEST_ASSERT_TRUE(m.applyResult(ResultType::P1Over));
+    TEST_ASSERT_EQUAL_INT(2, m.scoreP1());
+    TEST_ASSERT_EQUAL_INT(0, m.scoreP2());
+}
+
+// 場外勝要計入局數，而且撤銷後要完整還原 —— 新增的結果類型很容易漏掉
+// 這兩件事之一。
+void test_over_finish_counts_as_round_and_undoes(void) {
+    Match m;
+    m.start();
+    const int before = m.round();
+    m.applyResult(ResultType::P2Over);
+    TEST_ASSERT_EQUAL_INT(before + 1, m.round());
+    TEST_ASSERT_EQUAL_INT(2, m.scoreP2());
+
+    TEST_ASSERT_TRUE(m.undo());
+    TEST_ASSERT_EQUAL_INT(before, m.round());
+    TEST_ASSERT_EQUAL_INT(0, m.scoreP2());
 }
 
 void test_fresh_match_is_zeroed(void) {
@@ -61,13 +92,13 @@ void test_fresh_match_is_zeroed(void) {
 
 void test_cannot_score_before_start(void) {
     Match m;  // 尚未 start()
-    TEST_ASSERT_FALSE(m.applyResult(ResultType::P1Normal));
+    TEST_ASSERT_FALSE(m.applyResult(ResultType::P1Spin));
     TEST_ASSERT_EQUAL_INT(0, m.scoreP1());
 }
 
 void test_normal_win_adds_one_and_advances_round(void) {
     Match m = makeMatch();
-    TEST_ASSERT_TRUE(m.applyResult(ResultType::P1Normal));
+    TEST_ASSERT_TRUE(m.applyResult(ResultType::P1Spin));
     TEST_ASSERT_EQUAL_INT(1, m.scoreP1());
     TEST_ASSERT_EQUAL_INT(0, m.scoreP2());
     TEST_ASSERT_EQUAL_INT(2, m.round());
@@ -87,7 +118,7 @@ void test_burst_then_normal_wins_three_point_match(void) {
     Match m = makeMatch(3);
     m.applyResult(ResultType::P2Burst);   // P2 +2
     TEST_ASSERT_FALSE(m.finished());
-    m.applyResult(ResultType::P2Normal);  // P2 +1 -> 3
+    m.applyResult(ResultType::P2Spin);  // P2 +1 -> 3
     TEST_ASSERT_TRUE(m.finished());
     TEST_ASSERT_EQUAL_INT((int)Winner::P2, (int)m.winner());
 }
@@ -96,7 +127,7 @@ void test_score_after_finish_is_rejected(void) {
     Match m = makeMatch(3);
     m.applyResult(ResultType::P1Xtreme);
     TEST_ASSERT_TRUE(m.finished());
-    TEST_ASSERT_FALSE(m.applyResult(ResultType::P2Normal));
+    TEST_ASSERT_FALSE(m.applyResult(ResultType::P2Spin));
     TEST_ASSERT_EQUAL_INT(0, m.scoreP2());
 }
 
@@ -119,7 +150,7 @@ void test_no_contest_does_not_advance_round(void) {
 
 void test_undo_restores_previous_score(void) {
     Match m = makeMatch();
-    m.applyResult(ResultType::P1Normal);   // 1:0
+    m.applyResult(ResultType::P1Spin);   // 1:0
     m.applyResult(ResultType::P1Xtreme);   // 4:0（已達標）
     TEST_ASSERT_TRUE(m.finished());
 
@@ -138,7 +169,7 @@ void test_undo_on_empty_history_returns_false(void) {
 void test_undo_supports_at_least_five_steps(void) {
     Match m = makeMatch(99);  // 目標拉高，避免中途結束
     for (int i = 0; i < 5; ++i) {
-        m.applyResult(ResultType::P1Normal);
+        m.applyResult(ResultType::P1Spin);
     }
     TEST_ASSERT_EQUAL_INT(5, m.scoreP1());
     for (int i = 0; i < 5; ++i) {
@@ -153,7 +184,7 @@ void test_undo_stack_drops_oldest_when_full(void) {
     Match m = makeMatch(99);
     const int n = kUndoDepth + 3;
     for (int i = 0; i < n; ++i) {
-        m.applyResult(ResultType::P1Normal);
+        m.applyResult(ResultType::P1Spin);
     }
     TEST_ASSERT_EQUAL_INT(n, m.scoreP1());
     TEST_ASSERT_EQUAL_INT(kUndoDepth, m.undoAvailable());
@@ -179,8 +210,8 @@ void test_force_finish_decides_by_score(void) {
 
 void test_force_finish_draw_when_level(void) {
     Match m = makeMatch(99);
-    m.applyResult(ResultType::P1Normal);
-    m.applyResult(ResultType::P2Normal);
+    m.applyResult(ResultType::P1Spin);
+    m.applyResult(ResultType::P2Spin);
     m.forceFinish();
     TEST_ASSERT_TRUE(m.finished());
     TEST_ASSERT_EQUAL_INT((int)Winner::Draw, (int)m.winner());
@@ -213,13 +244,13 @@ void test_last_event_reports_latest_scoring(void) {
 void test_custom_rules_are_honoured(void) {
     Match m;
     RuleSet rs = defaultRuleSet();
-    rs.rules[(int)ResultType::P1Normal].p1Points = 5;  // 使用者自訂
+    rs.rules[(int)ResultType::P1Spin].p1Points = 5;  // 使用者自訂
     MatchConfig cfg = defaultConfig();
     cfg.targetScore = 5;
     m.configure(cfg, rs);
     m.start();
 
-    m.applyResult(ResultType::P1Normal);
+    m.applyResult(ResultType::P1Spin);
     TEST_ASSERT_EQUAL_INT(5, m.scoreP1());
     TEST_ASSERT_TRUE(m.finished());
 }
@@ -234,10 +265,10 @@ void test_invalid_target_score_is_clamped(void) {
 
 void test_max_rounds_ends_match_on_points(void) {
     Match m = makeMatch(99, 3);  // 目標分數極高，只靠局數上限結束
-    m.applyResult(ResultType::P1Normal);  // round -> 2
+    m.applyResult(ResultType::P1Spin);  // round -> 2
     m.applyResult(ResultType::P2Burst);   // round -> 3
     TEST_ASSERT_FALSE(m.finished());
-    m.applyResult(ResultType::P1Normal);  // round -> 4 > 3，結束
+    m.applyResult(ResultType::P1Spin);  // round -> 4 > 3，結束
     TEST_ASSERT_TRUE(m.finished());
     // P1 2 : 2 P2 -> 平手
     TEST_ASSERT_EQUAL_INT(2, m.scoreP1());
@@ -276,7 +307,9 @@ int main(int, char**) {
     UNITY_BEGIN();
 
     RUN_TEST(test_default_config_is_four_point_match);
-    RUN_TEST(test_default_rules_are_1_2_3);
+    RUN_TEST(test_default_rules_match_official_points);
+    RUN_TEST(test_over_finish_scores_only_the_winner);
+    RUN_TEST(test_over_finish_counts_as_round_and_undoes);
     RUN_TEST(test_fresh_match_is_zeroed);
 
     RUN_TEST(test_cannot_score_before_start);

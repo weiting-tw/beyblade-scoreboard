@@ -13,8 +13,8 @@ namespace {
 
 // --- 音色設計 ---------------------------------------------------------
 //
-// 全部即時合成，不用音檔：16kHz 下一段 200ms 的 WAV 要 6.4KB，八個音效就要
-// 佔 littlefs 還得處理檔案系統；合成只要幾行程式，延遲也最低。
+// 全部即時合成，不用音檔：一段 200ms 的 WAV 要近 9KB，八個音效就要佔 littlefs
+// 還得處理檔案系統；合成只要幾行程式，延遲也最低。
 //
 // 每個音效是一串「頻率 + 長度」。頻率 0 代表靜音（音之間的間隔）。
 struct Tone {
@@ -61,11 +61,10 @@ struct AudioMsg {
     Voice b;
 };
 
-// 播報進行中。語音辨識拿它決定要不要丟棄結果。
-volatile bool s_speaking = false;
 TaskHandle_t s_task = nullptr;
 
-// 一次處理 512 frame（32ms）。I2S 的 DMA 只有 6 x 240 = 1440 frame（90ms），
+// 一次處理 512 frame（22.05kHz 下約 23ms）。I2S 的 DMA 只有
+// 6 x 240 = 1440 frame（約 65ms），
 // 而且 auto_clear = true —— 餵不及時它會直接輸出靜音，聽起來就是斷音。
 // 寫得大塊一點可以減少呼叫次數、拉開與 underrun 的距離。
 // stereo 16bit -> 2KB，放 static 不吃堆疊。
@@ -74,9 +73,8 @@ int16_t s_chunk[kChunkFrames * 2];
 
 // --- 語音片段 ---------------------------------------------------------
 //
-// 有錄好的語音就用語音，沒有才退回合成音。片段由 tools/gen_voice_clips.py
-// 在 Mac 上用 `say` 產生（板上的 esp-sr TTS 只有標頭檔沒有實作，
-// 而且是中文專用，講不出 "GO SHOOT"）。
+// 有錄好的語音就用語音，沒有才退回合成音。
+// 片段由 tools/gen_voice_clips.py 在 Mac 上用 piper TTS 產生。
 bool getClip(Sfx sfx, const int16_t** data, unsigned* len) {
     switch (sfx) {
         case Sfx::Count3:
@@ -110,9 +108,13 @@ bool getVoiceClip(Voice v, const int16_t** data, unsigned* len) {
             *data = clip_player_two;
             *len = clip_player_two_len;
             return true;
-        case Voice::NormalFinish:
-            *data = clip_normal;
-            *len = clip_normal_len;
+        case Voice::SpinFinish:
+            *data = clip_spin;
+            *len = clip_spin_len;
+            return true;
+        case Voice::OverFinish:
+            *data = clip_over;
+            *len = clip_over_len;
             return true;
         case Voice::BurstFinish:
             *data = clip_burst;
@@ -247,16 +249,12 @@ void audioTask(void*) {
         unsigned clipLen = 0;
 
         if (isAnnounce) {
-            // s_speaking 要在整句播完後才放掉，否則第一段與第二段之間會有
-            // 一小段空window，語音辨識剛好在那裡收到自己講的下半句。
-            s_speaking = true;
             const Voice parts[2] = {msg.a, msg.b};
             for (const Voice v : parts) {
                 if (getVoiceClip(v, &clip, &clipLen)) {
                     playPcm(clip, clipLen);
                 }
             }
-            s_speaking = false;
         } else if (getClip(msg.sfx, &clip, &clipLen)) {
             playPcm(clip, clipLen);
         } else {
@@ -287,10 +285,10 @@ void feedbackInit() {
 
     // 獨立任務：合成與 I2S 寫入都會阻塞，放在 LVGL 執行緒會造成畫面卡頓。
     //
-    // 優先權 6 是刻意高於 esp-sr 的 feed/detect 任務（都是 5）。
-    // 音效播放是硬即時：錯過 DMA 期限，auto_clear 會補靜音，立刻聽得出斷音；
-    // 語音辨識晚幾毫秒則完全無感。原本設 2 會被 core 0 上的 SR Feed
-    // （跑 AFE 前處理，很吃 CPU）餓死，播出來的語音斷斷續續。
+    // 優先權 6 刻意訂得高。音效播放是硬即時：I2S 的 DMA 只有 90ms 且
+    // auto_clear = true，錯過期限它會直接輸出靜音，立刻聽得出斷音。
+    // 這個值原本是為了壓過 esp-sr 的任務（已移除）而訂，理由消失了但結論不變 ——
+    // core 0 上任何吃 CPU 的東西都不該有機會把它餓死。
     if (xTaskCreatePinnedToCore(audioTask, "sfx", 4096, nullptr, 6, &s_task, 0) !=
         pdPASS) {
         Serial.println("[feedback] 建立音效任務失敗");
@@ -323,8 +321,6 @@ void feedbackAnnounce(Voice first, Voice second) {
     AudioMsg msg{Sfx::Count, first, second};
     xQueueSend(s_queue, &msg, 0);
 }
-
-bool feedbackIsSpeaking() { return s_speaking; }
 
 void feedbackHaptic(uint16_t ms) {
     if (!g_store.settings().enableVibration) {
