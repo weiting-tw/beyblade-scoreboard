@@ -15,15 +15,17 @@ namespace bey {
 constexpr int kMaxHistory = 20;
 
 // blob 版本識別。改動下列 struct 版面時務必 +1，否則會讀到舊版亂數。
+// v4：新增 volume 欄位（struct 版面改變，必須升版）。
 // v3：預設賽制從 3 分改為 4 分。純粹改預設值不需要動版面，但不升版的話
-// NVS 裡存的舊值（3）會蓋過新預設，使用者永遠看不到 4 分。
-constexpr uint32_t kSettingsMagic = 0x42455903;  // BEY + v3
+//     NVS 裡存的舊值會蓋過新預設，使用者永遠看不到新的預設。
+constexpr uint32_t kSettingsMagic = 0x42455904;  // BEY + v4
 
 struct AppSettings {
     uint32_t magic;
     MatchConfig match;
     RuleSet rules;
     uint8_t brightness;  // 10..100
+    uint8_t volume;      // 0..100，喇叭音量
     uint16_t sleepSec;   // 0 = 不自動休眠
     bool enableVibration;
 };

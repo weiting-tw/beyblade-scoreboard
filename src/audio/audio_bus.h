@@ -31,4 +31,8 @@ I2SClass& audioBusI2S();
 // 喇叭功率放大器致能（GPIO9）。不播音時關掉可省電並避免底噪。
 void audioBusSpeakerEnable(bool on);
 
+// 喇叭音量 0..100，由 ES8311 codec 的類比增益實現。
+// 在 codec 端調比在軟體端乘倍數好 —— 軟體乘會把量化雜訊一起放大。
+void audioBusSetVolume(uint8_t volume);
+
 }  // namespace bey

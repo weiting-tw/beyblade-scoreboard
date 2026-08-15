@@ -29,6 +29,7 @@ void setup() {
 
     bey::g_store.begin();
     Set_Backlight(bey::g_store.settings().brightness);
+    bey::audioBusSetVolume(bey::g_store.settings().volume);
     bey::applySettingsToMatch();
     bey::feedbackInit();
     bey::ui::init();

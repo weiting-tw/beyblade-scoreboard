@@ -7,6 +7,8 @@
 #include <cstdio>
 
 #include "../app/app.h"
+#include "../app/feedback.h"
+#include "../audio/audio_bus.h"
 #include "Display_ST77916.h"  // Set_Backlight()
 #include "ui.h"
 #include "ui_theme.h"
@@ -21,6 +23,7 @@ enum class Field : uint8_t {
     Burst,
     Xtreme,
     Brightness,
+    Volume,
     Count,
 };
 
@@ -36,6 +39,7 @@ const StepAction kSteps[] = {
     {Field::Burst, -1},      {Field::Burst, +1},
     {Field::Xtreme, -1},     {Field::Xtreme, +1},
     {Field::Brightness, -5}, {Field::Brightness, +5},
+    {Field::Volume, -10},    {Field::Volume, +10},
 };
 
 lv_obj_t* s_valueLabels[static_cast<int>(Field::Count)] = {nullptr};
@@ -66,6 +70,8 @@ int readField(Field f) {
             return s.match.targetScore;
         case Field::Brightness:
             return s.brightness;
+        case Field::Volume:
+            return s.volume;
         default: {
             const int8_t* p = pointsOf(f, s);
             return (p != nullptr) ? *p : 0;
@@ -83,6 +89,14 @@ void writeField(Field f, int v) {
             const int b = (v < 10) ? 10 : ((v > 100) ? 100 : v);
             s.brightness = static_cast<uint8_t>(b);
             Set_Backlight(static_cast<uint8_t>(b));  // 立即套用，看得到效果
+            break;
+        }
+        case Field::Volume: {
+            const int v2 = (v < 0) ? 0 : ((v > 100) ? 100 : v);
+            s.volume = static_cast<uint8_t>(v2);
+            audioBusSetVolume(s.volume);
+            // 立刻播一聲，否則使用者只是在看數字變動，聽不出差別。
+            feedbackPlay(Sfx::Tick);
             break;
         }
         default: {
@@ -270,6 +284,7 @@ void showSettings() {
     makeStepperRow(cont, "爆裂勝", Field::Burst, 4);
     makeStepperRow(cont, "XTREME", Field::Xtreme, 6);
     makeStepperRow(cont, "亮度", Field::Brightness, 8);
+    makeStepperRow(cont, "音量", Field::Volume, 10);
 
     makeSwitchRow(cont, "音效", s.match.enableSound, onToggleSound);
     makeSwitchRow(cont, "震動", s.enableVibration, onToggleVibration);

@@ -5,6 +5,7 @@
 #include <cmath>
 
 #include "../audio/audio_bus.h"
+#include "../audio/clips/voice_clips.h"
 #include "settings_store.h"
 
 namespace bey {
@@ -47,9 +48,42 @@ constexpr float kAmplitude = 0.28f;
 QueueHandle_t s_queue = nullptr;
 TaskHandle_t s_task = nullptr;
 
-// 一次合成 256 frame（16ms）。stereo 16bit -> 1KB，放 static 不吃堆疊。
+// 一次處理 256 frame（16ms）。stereo 16bit -> 1KB，放 static 不吃堆疊。
 constexpr int kChunkFrames = 256;
 int16_t s_chunk[kChunkFrames * 2];
+
+// --- 語音片段 ---------------------------------------------------------
+//
+// 有錄好的語音就用語音，沒有才退回合成音。片段由 tools/gen_voice_clips.py
+// 在 Mac 上用 `say` 產生（板上的 esp-sr TTS 只有標頭檔沒有實作，
+// 而且是中文專用，講不出 "GO SHOOT"）。
+bool getClip(Sfx sfx, const int16_t** data, unsigned* len) {
+    switch (sfx) {
+        case Sfx::Go:
+            *data = clip_go;
+            *len = clip_go_len;
+            return true;
+        default:
+            return false;
+    }
+}
+
+// 片段是單聲道，I2S 開在 STEREO，因此要複製到左右兩聲道。
+void playPcm(const int16_t* mono, unsigned len) {
+    unsigned done = 0;
+    while (done < len) {
+        const unsigned n =
+            (len - done < kChunkFrames) ? (len - done) : kChunkFrames;
+        for (unsigned i = 0; i < n; ++i) {
+            const int16_t v = mono[done + i];
+            s_chunk[i * 2] = v;
+            s_chunk[i * 2 + 1] = v;
+        }
+        audioBusI2S().write(reinterpret_cast<uint8_t*>(s_chunk),
+                            static_cast<size_t>(n) * 2 * sizeof(int16_t));
+        done += n;
+    }
+}
 
 // 播放單一音。phase 跨 chunk 累積，避免每個 chunk 從 0 開始造成爆音。
 void playTone(const Tone& t) {
@@ -107,11 +141,18 @@ void audioTask(void*) {
         }
 
         audioBusSpeakerEnable(true);
-        for (const Tone& t : kSfx[idx].tones) {
-            if (t.ms == 0) {
-                break;  // 這個音效的音已經放完
+
+        const int16_t* clip = nullptr;
+        unsigned clipLen = 0;
+        if (getClip(sfx, &clip, &clipLen)) {
+            playPcm(clip, clipLen);
+        } else {
+            for (const Tone& t : kSfx[idx].tones) {
+                if (t.ms == 0) {
+                    break;  // 這個音效的音已經放完
+                }
+                playTone(t);
             }
-            playTone(t);
         }
         // I2S 是有緩衝的，立刻關功放會把尾巴切掉。
         vTaskDelay(pdMS_TO_TICKS(40));

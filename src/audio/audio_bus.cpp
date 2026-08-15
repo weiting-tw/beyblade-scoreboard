@@ -19,6 +19,7 @@ constexpr gpio_num_t kSpeakerEnable = GPIO_NUM_9;
 constexpr uint32_t kMclkMultiple = 256;
 
 I2SClass s_i2s;
+es8311_handle_t s_es8311 = nullptr;  // 留著才能事後調音量
 bool s_ready = false;
 bool s_hasMic = false;
 bool s_hasSpeaker = false;
@@ -40,9 +41,9 @@ bool initSpeakerCodec() {
         Serial.println("[audio] ES8311 初始化失敗");
         return false;
     }
-    es8311_voice_volume_set(h, 75, nullptr);
     // 麥克風走 ES7210，ES8311 自己的麥克風輸入不啟用。
     es8311_microphone_config(h, false);
+    s_es8311 = h;  // 音量之後由 audioBusSetVolume() 設定
     return true;
 }
 
@@ -117,6 +118,16 @@ I2SClass& audioBusI2S() { return s_i2s; }
 
 void audioBusSpeakerEnable(bool on) {
     digitalWrite(kSpeakerEnable, on ? HIGH : LOW);
+}
+
+void audioBusSetVolume(uint8_t volume) {
+    if (s_es8311 == nullptr) {
+        return;
+    }
+    if (volume > 100) {
+        volume = 100;
+    }
+    es8311_voice_volume_set(s_es8311, volume, nullptr);
 }
 
 }  // namespace bey

@@ -25,6 +25,7 @@ AppSettings defaultSettings() {
     s.match = defaultConfig();
     s.rules = defaultRuleSet();
     s.brightness = 80;
+    s.volume = 75;
     s.sleepSec = 0;  // 第一版預設不自動休眠，避免比賽中途熄屏
     s.enableVibration = false;
     return s;
@@ -46,6 +47,9 @@ void SettingsStore::begin() {
         }
         if (s_.brightness > 100) {
             s_.brightness = 100;
+        }
+        if (s_.volume > 100) {
+            s_.volume = 100;
         }
         s_.match.p1Name[kNameLen - 1] = '\0';
         s_.match.p2Name[kNameLen - 1] = '\0';
