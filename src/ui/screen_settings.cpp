@@ -152,10 +152,6 @@ void onToggleAnnounce(lv_event_t* e) {
     g_store.mutableSettings().enableAnnounce =
         lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
 }
-void onToggleVibration(lv_event_t* e) {
-    g_store.mutableSettings().enableVibration =
-        lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
-}
 void onToggleHistory(lv_event_t* e) {
     g_store.mutableSettings().match.saveHistory =
         lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
@@ -309,7 +305,6 @@ void showSettings() {
 
     makeSwitchRow(cont, "音效", s.match.enableSound, onToggleSound);
     makeSwitchRow(cont, "勝利語音", s.enableAnnounce, onToggleAnnounce);
-    makeSwitchRow(cont, "震動", s.enableVibration, onToggleVibration);
     makeSwitchRow(cont, "保存紀錄", s.match.saveHistory, onToggleHistory);
 
     makeActionRow(cont, "清除歷史紀錄", colDanger(), onClearHistory);

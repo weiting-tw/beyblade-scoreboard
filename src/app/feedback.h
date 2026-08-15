@@ -58,7 +58,12 @@ void feedbackAnnounce(Voice first, Voice second = Voice::None,
 // 數秒了聲音還落後一大截，兩者糊在一起。
 void feedbackStop();
 
-// 震動回饋。enableVibration 為 false 時直接略過。
+// 震動回饋。
+//
+// 板上沒有震動馬達，目前是 no-op —— 呼叫點（得分、撤銷）留著，外接馬達
+// 之後只要填這個函式就會動。設定頁不顯示震動開關：一個撥了沒反應的開關
+// 比缺一個功能更讓人困惑。AppSettings::enableVibration 欄位保留，
+// 移掉它要升 kSettingsMagic，為了一個沒有 UI 的欄位不值得。
 void feedbackHaptic(uint16_t ms);
 
 }  // namespace bey
