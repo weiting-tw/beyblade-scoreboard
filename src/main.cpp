@@ -11,6 +11,7 @@
 #include "app/app.h"
 #include "app/feedback.h"
 #include "app/power.h"
+#include "app/screenshot.h"
 #include "ui/ui.h"
 #include "audio/audio_bus.h"
 #include "voice/voice.h"
@@ -58,6 +59,45 @@ void loop() {
             continue;
         }
         bey::ui::handleVoiceCommand(cmd);
+    }
+
+    // 除錯用序列埠指令。板子不在手邊時，這是唯一能確認版面實際長相的方法：
+    // 's' 把目前畫面傳回開發機，數字鍵切到指定畫面（切畫面本來要用觸控）。
+    while (Serial.available() > 0) {
+        switch (Serial.read()) {
+            case 's':
+                bey::screenshotCapture();
+                break;
+            case '1':
+                bey::ui::showHome();
+                break;
+            case '2':
+                bey::ui::showReady();
+                break;
+            case '3':
+                bey::ui::showScore();
+                break;
+            case '4':
+                bey::ui::showRound();
+                break;
+            case '5':
+                bey::ui::showComplete();
+                break;
+            case '6':
+                bey::ui::showSettings();
+                break;
+            case '7':
+                bey::ui::showFormat();
+                break;
+            case '8':
+                bey::ui::showHistory();
+                break;
+            case '9':
+                bey::ui::showWinTypeOverlay(true);
+                break;
+            default:
+                break;
+        }
     }
 
     Lvgl_Loop();

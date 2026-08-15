@@ -6,6 +6,8 @@
 ******************************************************************************/
 #include "LVGL_Driver.h"
 
+#include "../app/screenshot.h"
+
 static lv_disp_draw_buf_t draw_buf;
 static lv_color_t buf1[ LVGL_BUF_LEN ];
 static lv_color_t buf2[ LVGL_BUF_LEN];
@@ -27,6 +29,9 @@ static lv_color_t buf2[ LVGL_BUF_LEN];
  */
 void Lvgl_Display_LCD( lv_disp_drv_t *disp_drv, const lv_area_t *area, lv_color_t *color_p )
 {
+  /* 擷取要在 LCD_addWindow 之前：它會對緩衝區原地做位元組交換，
+   * 之後再讀就變成 big-endian 了。非擷取狀態下這只是一個 bool 判斷。*/
+  bey::screenshotOnFlush(area, color_p);
   LCD_addWindow(area->x1, area->y1, area->x2, area->y2, ( uint16_t *)&color_p->full);
 }
 
