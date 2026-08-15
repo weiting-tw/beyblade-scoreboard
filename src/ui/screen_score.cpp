@@ -198,10 +198,20 @@ void showScore(Nav nav) {
 
     lv_obj_t* s = makeScreen();
 
+    // 4 分制是官方標準賽制，天天都是它 —— 一直掛在最顯眼的位置等於用版面
+    // 講一句廢話。只有非標準賽制才需要提醒，那時字串長很多，字級得跟著降：
+    // font_tc_30 下「第 1 局  4 分制」實測會到 205px 寬，外角 184 直接超出
+    // 面板半徑 180；只有「第 1 局」時約 90px，外角 159，放得下。
     char buf[40];
-    std::snprintf(buf, sizeof(buf), "第 %d 局    %d 分制", g_match.round(),
-                  cfg.targetScore);
-    makeLabel(s, buf, &font_tc_22, colSubtle(), 0, -135);
+    const bool standard = (cfg.targetScore == 4);
+    if (standard) {
+        std::snprintf(buf, sizeof(buf), "第 %d 局", g_match.round());
+    } else {
+        std::snprintf(buf, sizeof(buf), "第 %d 局    %d 分制", g_match.round(),
+                      cfg.targetScore);
+    }
+    makeLabel(s, buf, standard ? &font_tc_30 : &font_tc_22, colSubtle(), 0,
+              -135);
 
     // 玩家名稱與分數
     // 寬度 88 是量出來的：font_tc_16 下八個 ASCII 字元剛好 88px，六個漢字 66px。
@@ -260,10 +270,11 @@ void showScore(Nav nav) {
     makeButton(s, "重設", 55, 95, 104, 48, colDanger(), onReset, nullptr,
                &font_tc_16);
 
-    // 本局計時放最底下。dy 143、字高 19，外角距圓心 152.7，在 kSafeR 內；
-    // 用 montserrat 的數字與冒號，不新增任何中文字。
+    // 本局計時放最底下。font_tc_22 的字框高 27，dy 143 時上緣 129.5、
+    // 在按鈕列下緣（119）之下留 10px；外角距圓心 158.1，在 kSafeR 內。
+    // 用得到的是 ASCII 數字與冒號，這個字型含 0x20~0x7F，不新增中文字。
     // colMuted 是設計來當背景的（0x2C2C3A），拿來寫字在黑底上幾乎看不見。
-    s_clock = makeLabel(s, "0:00", &lv_font_montserrat_14, colSubtle(), 0, 143);
+    s_clock = makeLabel(s, "0:00", &font_tc_22, colSubtle(), 0, 143);
     lv_obj_add_event_cb(s, onScoreScreenDel, LV_EVENT_DELETE, nullptr);
     updateClock(nullptr);
     s_clockTimer = lv_timer_create(updateClock, 500, nullptr);
