@@ -9,6 +9,7 @@
 #include "I2C_Driver.h"
 #include "LVGL_Driver.h"
 #include "app/app.h"
+#include "app/button.h"
 #include "app/feedback.h"
 #include "app/gesture.h"
 #include "app/power.h"
@@ -35,6 +36,7 @@ void setup() {
     bey::audioBusSetVolume(bey::g_store.settings().volume);
     bey::applySettingsToMatch();
     bey::feedbackInit();
+    bey::buttonBegin();
     bey::rtcBegin();
     bey::power::begin();
     bey::ui::init();
@@ -121,6 +123,20 @@ void loop() {
         }
     }
 #endif  // BEY_DEBUG_SERIAL
+
+    // 實體按鍵（BOOT）＝這一局重來。
+    //
+    // 無效局在 Beyblade 很常見（沒發射好、同時出界、陀螺沒裝好），而那時候
+    // 手上還拿著發射器，摸到板子側面的按鍵比在螢幕上找按鈕快得多。
+    // 分數與局數都不變，只是重新倒數 —— Match::start() 只在比賽已結束時
+    // 才 reset，所以比分不會被清掉。
+    //
+    // 只在計分頁有效：倒數中按它會打斷正在跑的倒數，其他畫面則沒有
+    // 「這一局」可言。
+    if (bey::buttonPressed() &&
+        bey::ui::currentScreen() == bey::ui::ScreenId::Score) {
+        bey::ui::showCountdown();
+    }
 
     // 手勢。旋轉用累積格數，滑動用單一事件。
     applyRotation(bey::gestureTakeRotation());
