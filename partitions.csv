@@ -1,10 +1,17 @@
 # 16MB Flash 分割表
-# nvs      : Preferences（設定 + 最近 20 場歷史）
-# app0     : 韌體 4MB（LVGL + 大字體足夠，留成長空間）
-# littlefs : 預留給 Phase 5 音效素材（WAV/MP3）
+#
+# nvs      : Preferences（設定 + 最近 20 場歷史）。位移與大小刻意與前一版相同，
+#            改分割表不會弄丟使用者設定。
+# app0     : 韌體 4MB
+# model    : esp-sr 語音模型（你好小智喚醒詞 + mn7_cn 命令詞 + fst）
+#            實際 srmodels.bin 約 2.84MB。官方 esp_sr_16.csv 只給 2.9MB，
+#            只剩 43KB 餘裕；這裡給 4MB，日後換更大的模型不用重排分割表。
+#            esp_srmodel_init("model") 是用 **標籤** 找分割區，名稱不可改。
+# littlefs : Phase 5 音效素材
 #
 # Name,     Type, SubType,  Offset,   Size,     Flags
 nvs,        data, nvs,      0x9000,   0x5000,
 otadata,    data, ota,      0xe000,   0x2000,
 app0,       app,  factory,  0x10000,  0x400000,
-littlefs,   data, spiffs,   0x410000, 0xBF0000,
+model,      data, spiffs,   0x410000, 0x400000,
+littlefs,   data, spiffs,   0x810000, 0x7F0000,

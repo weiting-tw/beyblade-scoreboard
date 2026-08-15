@@ -5,7 +5,8 @@ Waveshare **ESP32-S3-Touch-LCD-1.85B**（1.85吋 360×360 圓形觸控螢幕）�
 兩位玩家、可設定賽制、三種勝利類型（普通／爆裂／Xtreme Finish）、倒數動畫、撤銷、設定與歷史紀錄持久化。
 
 需求規格見 [`docs/SPEC.md`](docs/SPEC.md)，實作偏離與已知風險見 [`docs/DECISIONS.md`](docs/DECISIONS.md)，
-轉場與獲勝動畫的設計見 [`docs/MOTION.md`](docs/MOTION.md)。
+轉場與獲勝動畫的設計見 [`docs/MOTION.md`](docs/MOTION.md)，
+離線語音控制見 [`docs/VOICE.md`](docs/VOICE.md)。
 
 ---
 
@@ -27,6 +28,9 @@ beyblade-scoreboard/
 │   │   ├── Display_ST77916.*  esp_lcd_st77916.*
 │   │   ├── Touch_CST816.*     I2C_Driver.*
 │   │   └── LVGL_Driver.*
+│   ├── drivers/              ES8311 / ES7210 codec 驅動（官方）
+│   ├── voice/                離線語音辨識（你好小智 + 中文命令詞）
+│   ├── probe/                音訊硬體診斷韌體（獨立 env）
 │   ├── app/
 │   │   ├── app.*             全域比賽狀態、歷史寫入
 │   │   ├── settings_store.*  NVS 持久化
@@ -36,14 +40,19 @@ beyblade-scoreboard/
 │       ├── fonts.h           中文子集字型宣告
 │       ├── fonts/            font_tc_16/22/30.c（由 gen_fonts.py 產生）
 │       └── screen_*.cpp      九個畫面
+├── assets/
+│   └── srmodels.bin          esp-sr 語音模型（你好小智 + mn7_cn + fst）
 ├── tools/
-│   └── gen_fonts.py          從原始碼字串常值產生中文子集字型
+│   ├── gen_fonts.py          從原始碼字串常值產生中文子集字型
+│   ├── gen_sr_model.sh       重新打包語音模型
+│   └── pio_extra_sr_model.py 燒錄時把模型寫進 model 分割區
 ├── test/
 │   └── test_match_core/      23 個計分核心單元測試
 ├── docs/
 │   ├── SPEC.md               需求規格
 │   ├── DECISIONS.md          實作決策與規格偏離
-│   └── MOTION.md             轉場與獲勝動畫設計
+│   ├── MOTION.md             轉場與獲勝動畫設計
+│   └── VOICE.md              離線語音控制
 └── reference/                官方 repo（gitignored，389MB）
 ```
 
@@ -60,8 +69,9 @@ beyblade-scoreboard/
 | Arduino ESP32 core | 3.2.0 | 與官方 `Examples/Arduino-V3.2.0` 一致 |
 | LVGL | 8.4.0 | PlatformIO registry（與官方隨附版本相同） |
 | ST77916 / CST816 驅動 | — | 官方 repo `Examples/Arduino-V3.2.0/examples/01_lvgl_demo`，原樣複製 |
-| Noto Sans CJK TC | — | 中文字型來源（OFL 授權，可嵌入）。只嵌入 81 字的子集 |
+| Noto Sans CJK TC | — | 中文字型來源（OFL 授權，可嵌入）。只嵌入 103 字的子集 |
 | lv_font_conv | latest | 字型子集產生器（Node，僅開發時需要） |
+| esp-sr | Arduino core 內建 | 語音辨識。模型自行打包（見 docs/VOICE.md） |
 | Unity（測試） | 2.6.1 | 僅 native 環境 |
 
 > PlatformIO **官方**的 `espressif32` 平台仍停在 Arduino core 2.0.x，無法建置官方範例，
@@ -248,7 +258,7 @@ struct MatchRecord {          // 52 bytes
 
 ## 8. 已知限制
 
-1. **新增中文字串後必須重跑 `tools/gen_fonts.py`** —— 嵌入的是 81 字的子集字型，
+1. **新增中文字串後必須重跑 `tools/gen_fonts.py`** —— 嵌入的是 103 字的子集字型，
    沒收錄的字會在螢幕上變成空白方塊，而且**編譯不會報錯**。見下方第 13 節。
 2. **玩家名稱只能從 12 組預設中選** —— 圓形螢幕放不下可用的鍵盤。清單在 `src/ui/screen_names.cpp`。
 3. **歷史紀錄沒有時間戳** —— `timestamp` 恆為 0。RTC **硬體確實存在**（實測 0x51 有回應），
@@ -257,8 +267,9 @@ struct MatchRecord {          // 52 bytes
 5. **沒有音效與震動** —— `src/app/feedback.cpp` 是 no-op，介面已固定。
    音訊硬體已實測存在（ES8311 + ES7210），見第 12 節。
 6. **沒有電池電量顯示** —— BQ27220 屬 Phase 5，實測 0x55 有回應，官方有 `02_lvgl_BQ27220` 範例。
-7. **勝利類型必須手動選擇** —— 不自動偵測爆裂／出界／Xtreme Finish，那需要競技場端的額外感測器。
-8. **顯示與觸控尚未經人眼確認** —— 見下節。
+7. **語音辨識尚未實際測試** —— 模型已確認載入、命令已註冊，但還沒有人對著板子講話。見 `docs/VOICE.md`。
+8. **勝利類型必須手動選擇** —— 不自動偵測爆裂／出界／Xtreme Finish，那需要競技場端的額外感測器。
+9. **顯示與觸控尚未經人眼確認** —— 見下節。
 
 ### 已驗證 vs. 未驗證
 

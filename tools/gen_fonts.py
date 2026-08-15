@@ -15,6 +15,7 @@
 """
 
 import argparse
+import bisect
 import os
 import re
 import subprocess
@@ -26,6 +27,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCES = [
     "src/ui",
     "src/app",
+    "src/voice",
     "lib/match/src",
     "lib/match/include",
 ]
@@ -73,10 +75,25 @@ def collect_symbols():
     for path in iter_source_files():
         with open(path, encoding="utf-8") as f:
             text = f.read()
+
+        # 每個字元位移對應到第幾行，用來判斷該字串是不是在 Serial 呼叫上。
+        line_starts = [0]
+        for i, ch in enumerate(text):
+            if ch == "\n":
+                line_starts.append(i + 1)
+        lines = text.splitlines()
+
         for m in TOKEN_RE.finditer(text):
             token = m.group(0)
             if not token.startswith('"'):
                 continue  # 註解，跳過
+
+            # 除錯訊息只會出現在序列埠，不需要字型。少收這些字可省下可觀的
+            # flash（實測差 23 個字 / 約 100KB）。
+            line_no = bisect.bisect_right(line_starts, m.start()) - 1
+            if 0 <= line_no < len(lines) and "Serial." in lines[line_no]:
+                continue
+
             for ch in CJK_RE.findall(token):
                 chars.setdefault(ch, set()).add(os.path.relpath(path, ROOT))
     return "".join(sorted(chars)), chars

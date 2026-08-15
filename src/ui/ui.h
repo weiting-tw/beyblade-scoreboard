@@ -4,6 +4,7 @@
 // 因此各畫面之間不得共用 widget 指標，狀態一律放在 g_match / g_store。
 #pragma once
 
+#include "../voice/voice.h"  // VoiceCmd
 #include "match_core.h"
 #include "ui_theme.h"  // Nav
 
@@ -35,6 +36,9 @@ void showWinTypeOverlay(bool forPlayer1);
 
 // 二次確認對話框（重設用，規格第 9 節）。
 void showConfirmOverlay(const char* message, void (*onConfirm)());
+
+// 派送一個語音命令。必須在 LVGL 執行緒上呼叫（由 loop() 的 voicePoll 驅動）。
+void handleVoiceCommand(VoiceCmd cmd);
 
 }  // namespace ui
 }  // namespace bey

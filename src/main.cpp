@@ -11,6 +11,7 @@
 #include "app/app.h"
 #include "app/feedback.h"
 #include "ui/ui.h"
+#include "voice/voice.h"
 
 void setup() {
     Serial.begin(115200);
@@ -28,12 +29,24 @@ void setup() {
     bey::feedbackInit();
     bey::ui::init();
 
-    Serial.printf("[bey] ready, heap=%u psram=%u\n",
+    // 語音是加分項，不是必要條件。模型缺失或麥克風壞掉時只是沒有語音，
+    // 觸控計分完全不受影響，所以這裡不檢查回傳值中止開機。
+    bey::voiceBegin();
+
+    Serial.printf("[bey] ready, heap=%u psram=%u voice=%s\n",
                   static_cast<unsigned>(ESP.getFreeHeap()),
-                  static_cast<unsigned>(ESP.getFreePsram()));
+                  static_cast<unsigned>(ESP.getFreePsram()),
+                  bey::voiceStatusText());
 }
 
 void loop() {
+    // 語音辨識在自己的任務裡跑；命令經佇列送到這裡，
+    // 才能在 LVGL 執行緒上安全地切換畫面。
+    bey::VoiceCmd cmd;
+    while (bey::voicePoll(cmd)) {
+        bey::ui::handleVoiceCommand(cmd);
+    }
+
     Lvgl_Loop();
     vTaskDelay(pdMS_TO_TICKS(5));
 }
