@@ -141,13 +141,21 @@ ESP32-S3（PICO-1，8MB 內嵌 flash），不指定埠會有燒錯板子的風�
 官方 `Lvgl_Touchpad_Read()`（`src/bsp/LVGL_Driver.cpp`）直接把 CST816S 回報的座標餵給 LVGL，
 沒有任何旋轉或鏡射。第一次燒錄請先驗證方向。
 
-**檢查方法**：把 `LVGL_Driver.cpp` 裡這行的註解拿掉，開 serial monitor 後點螢幕四邊：
+**已實測，方向正確，不需要任何修正。** 四個邊緣的實際回報值：
 
-```cpp
-printf("LVGL : X=%u Y=%u points=%d\r\n", touch_data.x, touch_data.y, touch_data.points);
-```
+| 點的位置 | x | y |
+| --- | --- | --- |
+| 最上緣 | 188 | **6** |
+| 最下緣 | 192 | **355** |
+| 最左緣 | **12** | 180 |
+| 最右緣 | **350** | 205 |
 
-預期：左上角約 `(0,0)`，右下角約 `(359,359)`。
+上小下大、左小右大，沒有鏡射也沒有旋轉，中心落在 180 附近。下表的三種修正
+都不需要套用；列在這裡是給換板子或改面板時重測用的。
+
+**重測方法**：燒 `debug_serial` 版（`Lvgl_Touchpad_Read()` 裡有 `BEY_DEBUG_SERIAL`
+包住的座標回報，只在按下那一瞬間印一行），然後 `tools/serial_watch.py -s 60`
+邊錄邊點四個邊。不必再手動改程式碼取消註解。
 
 **症狀與修法**（改在 `Lvgl_Touchpad_Read()` 內）：
 

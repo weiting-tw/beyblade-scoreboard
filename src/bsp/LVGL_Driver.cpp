@@ -44,13 +44,26 @@ static void lvgl_flush_done(void *ctx)
 void Lvgl_Touchpad_Read( lv_indev_drv_t * indev_drv, lv_indev_data_t * data )
 {
   Touch_Read_Data();
+#if BEY_DEBUG_SERIAL
+  /* 只在按下那一瞬間印，不是整個按住期間 —— 觸控每 30ms 輪詢一次，
+   * 按住一秒就是 33 行，反而看不出點在哪。 */
+  static bool wasDown = false;
+#endif
   if (touch_data.points != 0x00) {
     data->point.x = touch_data.x;
     data->point.y = touch_data.y;
     data->state = LV_INDEV_STATE_PR;
-    // printf("LVGL : X=%u Y=%u points=%d\r\n",  touch_data.x , touch_data.y,touch_data.points);
+#if BEY_DEBUG_SERIAL
+    if (!wasDown) {
+      printf("[touch] x=%3u y=%3u\r\n", touch_data.x, touch_data.y);
+    }
+    wasDown = true;
+#endif
   } else {
     data->state = LV_INDEV_STATE_REL;
+#if BEY_DEBUG_SERIAL
+    wasDown = false;
+#endif
   }
   if (touch_data.gesture != NONE ) {    
   }
@@ -59,6 +72,7 @@ void Lvgl_Touchpad_Read( lv_indev_drv_t * indev_drv, lv_indev_data_t * data )
   touch_data.points = 0;
   touch_data.gesture = NONE;
 }
+
 void example_increase_lvgl_tick(void *arg)
 {
     /* Tell LVGL how many milliseconds has elapsed */
