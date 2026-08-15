@@ -147,18 +147,55 @@ void playTone(const Tone& t) {
     }
 }
 
+// 功放開啟後的暖機時間。Class-D 功放有防爆音的軟啟動斜坡，
+// 剛致能的頭幾十毫秒輸出是被壓低的。
+constexpr uint32_t kAmpWarmupMs = 35;
+
+// 閒置多久才關功放。倒數是 1 秒一拍，這個值必須大於一拍，
+// 否則每個數字之間功放都會關掉再開，每段都要重新爬斜坡。
+constexpr uint32_t kAmpIdleMs = 1500;
+
+// 推一段靜音把 DMA 緩衝區裡的尾巴擠出去。
+// i2s.write() 是「排進 DMA 就返回」，不是「已經放完」。
+void flushDma() {
+    constexpr int kSilenceFrames = kChunkFrames;
+    static const int16_t silence[kChunkFrames * 2] = {0};
+    for (int i = 0; i < 4; ++i) {
+        audioBusI2S().write(reinterpret_cast<uint8_t*>(
+                                const_cast<int16_t*>(silence)),
+                            kSilenceFrames * 2 * sizeof(int16_t));
+    }
+}
+
 void audioTask(void*) {
     Sfx sfx;
+    bool ampOn = false;
+
     for (;;) {
-        if (xQueueReceive(s_queue, &sfx, portMAX_DELAY) != pdTRUE) {
+        // 用逾時等待而不是無限等待：逾時代表一段時間沒有音效了，
+        // 這時才把功放關掉。
+        if (xQueueReceive(s_queue, &sfx, pdMS_TO_TICKS(kAmpIdleMs)) != pdTRUE) {
+            if (ampOn) {
+                flushDma();
+                audioBusSpeakerEnable(false);
+                ampOn = false;
+            }
             continue;
         }
+
         const int idx = static_cast<int>(sfx);
         if (idx < 0 || idx >= kSfxCount) {
             continue;
         }
 
-        audioBusSpeakerEnable(true);
+        // 功放只在「本來是關的」時候才開並暖機。整段倒數期間它會一直開著，
+        // 所以 Three/Two/One/Go 的音量一致 —— 之前每段都開關一次，
+        // 短的「Two」「One」整段幾乎都落在軟啟動斜坡裡，所以越後面越小聲。
+        if (!ampOn) {
+            audioBusSpeakerEnable(true);
+            ampOn = true;
+            vTaskDelay(pdMS_TO_TICKS(kAmpWarmupMs));
+        }
 
         const int16_t* clip = nullptr;
         unsigned clipLen = 0;
@@ -172,9 +209,6 @@ void audioTask(void*) {
                 playTone(t);
             }
         }
-        // I2S 是有緩衝的，立刻關功放會把尾巴切掉。
-        vTaskDelay(pdMS_TO_TICKS(40));
-        audioBusSpeakerEnable(false);
     }
 }
 
