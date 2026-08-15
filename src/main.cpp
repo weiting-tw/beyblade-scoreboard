@@ -77,6 +77,10 @@ void loop() {
                 bey::ui::showReady();
                 break;
             case '3':
+                // 開一場新的再進計分頁。只切畫面的話 g_match 還沒 start()，
+                // applyResult() 會直接回 false，模擬得分等於沒按。
+                bey::g_match.reset();
+                bey::g_match.start();
                 bey::ui::showScore();
                 break;
             case '4':
@@ -96,6 +100,14 @@ void loop() {
                 break;
             case '9':
                 bey::ui::showWinTypeOverlay(true);
+                break;
+            // 模擬得分，用來在沒有觸控的情況下把一場比賽跑完
+            // （驗證計分流程、轉場、播報與歷史紀錄）。
+            case 'a':
+                bey::ui::applyResultAndAdvance(bey::ResultType::P1Normal);
+                break;
+            case 'b':
+                bey::ui::applyResultAndAdvance(bey::ResultType::P2Burst);
                 break;
             default:
                 break;
