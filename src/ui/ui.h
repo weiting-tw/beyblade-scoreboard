@@ -4,7 +4,6 @@
 // 因此各畫面之間不得共用 widget 指標，狀態一律放在 g_match / g_store。
 #pragma once
 
-#include "../voice/voice.h"  // VoiceCmd
 #include "match_core.h"
 #include "ui_theme.h"  // Nav
 
@@ -39,9 +38,6 @@ void showConfirmOverlay(const char* message, void (*onConfirm)());
 
 // 關掉目前的疊層。沒有疊層時是 no-op。
 void closeOverlay();
-
-// 派送一個語音命令。必須在 LVGL 執行緒上呼叫（由 loop() 的 voicePoll 驅動）。
-void handleVoiceCommand(VoiceCmd cmd);
 
 }  // namespace ui
 }  // namespace bey

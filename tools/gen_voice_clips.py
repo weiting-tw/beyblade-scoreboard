@@ -6,17 +6,16 @@
     python3 tools/gen_voice_clips.py --engine say         # 改用 macOS say
     python3 -m piper.download_voices --data-dir ~/.config/piper en_US-<voice>
 
-為什麼不用板上的 TTS：esp-sr 的 esp_tts_chinese 在 Arduino 的預建函式庫裡
-**只有標頭檔、沒有 libesp_tts.a**，而且是中文專用，講不出 "GO SHOOT"。
-在 Mac 上先合成、把 PCM 燒進 flash 反而更可控：發音、語氣、語速都在產生
-階段決定，板子只要把樣本推進 I2S。
+在 Mac 上先合成、把 PCM 燒進 flash 最可控：發音、語氣、語速都在產生階段
+決定，板子只要把樣本推進 I2S。
 
 為什麼用 piper 而不是 say：`say` 的 --rate 對這種短句幾乎沒作用
 （實測 "Go Shoot!" 從 rate 170 調到 100 只有 0.68s -> 0.80s），
 piper 的 --length-scale 才是真正在拉長發音。say 保留為不想裝 piper 時的退路。
 
-輸出格式固定 16kHz / 16bit / 單聲道 —— esp-sr 綁死 16kHz，
-整條音訊匯流排都跟著它走。
+輸出格式固定 22050Hz / 16bit / 單聲道，與 src/audio/audio_bus.h 的
+kAudioSampleRate 一致；改一邊就要改另一邊。22050 也正好是 piper 的原生輸出
+取樣率，因此不需要重新取樣。
 """
 
 import argparse
@@ -31,7 +30,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 OUT_DIR = os.path.join(ROOT, "src", "audio", "clips")
 PIPER_DATA_DIR = os.path.expanduser("~/.config/piper")
 
-SAMPLE_RATE = 16000
+SAMPLE_RATE = 22050
 
 # (C 識別字, 要唸的文字)
 #
@@ -39,9 +38,8 @@ SAMPLE_RATE = 16000
 # 不錄點數：點數規則是可設定的，要涵蓋所有組合片段會膨脹，而且分數就顯示
 # 在螢幕上，播出來只是冗餘資訊，徒然拖長播報、打斷對戰節奏。
 #
-# 全部用英文而不是中文：喚醒詞與 11 個命令詞都是中文，而 AEC 是關的，
-# 播中文等於拿命令詞的聲學鄰居去餵自己的麥克風，自我誤觸發會從「幾乎不會」
-# 變成「一定要處理」。英文和中文命令詞的聲學距離遠得多。
+# 全部用英文：Beyblade 的官方術語（Burst / Xtreme Finish）本來就是英文，
+# 中譯反而拗口。
 CLIPS = [
     # 倒數
     ("clip_three", "Three"),
@@ -52,7 +50,8 @@ CLIPS = [
     ("clip_player_one", "Player One"),
     ("clip_player_two", "Player Two"),
     # 播報 —— 什麼方式
-    ("clip_normal", "Normal Finish"),
+    ("clip_spin", "Spin Finish"),
+    ("clip_over", "Over Finish"),
     ("clip_burst", "Burst Finish"),
     ("clip_xtreme", "Xtreme Finish"),
     # 播報 —— 比賽結束
@@ -94,16 +93,16 @@ def synth_say(text, voice, length_scale):
 
 
 def resample(path):
-    """piper 輸出 22050Hz，用 ffmpeg 轉成 16kHz/mono/s16。"""
+    """用 ffmpeg 統一成 SAMPLE_RATE/mono/s16。
+
+    piper 原生就輸出 22050Hz，SAMPLE_RATE 也是 22050 時這一步不做重新取樣，
+    只負責轉成單聲道 s16。SAMPLE_RATE 改成別的值時才會真的降／升取樣。
+    """
     fd, out = tempfile.mkstemp(suffix=".wav")
     os.close(fd)
     try:
         subprocess.run(
-            # 22050 -> 16000 是非整數比，預設的 swr 濾波器（filter_size 32）
-            # 會留下可聽見的混疊。拉長濾波器並把截止頻率壓到 0.95 奈奎斯特，
-            # 換取乾淨的降取樣。這台 ffmpeg 沒編進 soxr，只能調 swr。
             ["ffmpeg", "-y", "-i", path,
-             "-af", "aresample=resampler=swr:filter_size=256:cutoff=0.95",
              "-ar", str(SAMPLE_RATE),
              "-ac", "1", "-sample_fmt", "s16", out],
             check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,

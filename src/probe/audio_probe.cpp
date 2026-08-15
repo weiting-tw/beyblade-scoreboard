@@ -2,7 +2,7 @@
 //
 //     .venv/bin/pio run -e audio_probe -t upload && .venv/bin/pio device monitor
 //
-// 目的：在投入語音控制開發前，先確認這片板子的音訊硬體實際狀況。
+// 目的：確認這片板子的音訊硬體實際狀況。
 // 從軟體無法得知麥克風膠囊與喇叭是否真的焊上去了，只能實測。
 //
 // 會回答三個問題：
@@ -11,7 +11,7 @@
 //   2. 麥克風有沒有訊號？—— 印出即時音量條，對著板子講話會跳動。
 //   3. 喇叭有沒有聲音？—— 每 4 秒播一次 1kHz 嗶聲，這題需要耳朵。
 //
-// 腳位全部取自官方範例 03_audio_out_no_tf 與 06_esp_sr。
+// 腳位全部取自官方範例 03_audio_out_no_tf。
 #include <Arduino.h>
 #include <Wire.h>
 
@@ -82,7 +82,7 @@ void scanI2c() {
                   g_es7210Ok ? "存在" : "*** 無回應 ***");
     if (!g_es8311Ok && !g_es7210Ok) {
         Serial.println("  兩顆 codec 都沒回應 —— 這片板子可能沒有音訊硬體，");
-        Serial.println("  離線語音控制需要外接 I2S 麥克風與功放。");
+        Serial.println("  音效與播報需要外接 I2S 功放。");
     }
     Serial.println();
 }

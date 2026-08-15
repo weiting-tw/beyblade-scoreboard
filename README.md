@@ -1,12 +1,11 @@
-| 5 | 音效（已實作，合成音）／震動、IMU、電池、自動休眠（未實作） | 部分完成 |# Beyblade X 戰鬥計分器
+# Beyblade X 戰鬥計分器
 
 Waveshare **ESP32-S3-Touch-LCD-1.85B**（1.85吋 360×360 圓形觸控螢幕）上的陀螺對戰計分器。
 
 兩位玩家、可設定賽制、三種勝利類型（普通／爆裂／Xtreme Finish）、倒數動畫、撤銷、設定與歷史紀錄持久化。
 
 需求規格見 [`docs/SPEC.md`](docs/SPEC.md)，實作偏離與已知風險見 [`docs/DECISIONS.md`](docs/DECISIONS.md)，
-轉場與獲勝動畫的設計見 [`docs/MOTION.md`](docs/MOTION.md)，
-離線語音控制見 [`docs/VOICE.md`](docs/VOICE.md)。
+轉場與獲勝動畫的設計見 [`docs/MOTION.md`](docs/MOTION.md)。
 
 ---
 
@@ -29,32 +28,27 @@ beyblade-scoreboard/
 │   │   ├── Touch_CST816.*     I2C_Driver.*
 │   │   └── LVGL_Driver.*
 │   ├── drivers/              ES8311 / ES7210 codec 驅動（官方）
-│   ├── voice/                離線語音辨識（你好小智 + 中文命令詞）
+│   ├── audio/                I2S 匯流排與語音片段（22.05kHz PCM）
 │   ├── probe/                音訊硬體診斷韌體（獨立 env）
 │   ├── app/
 │   │   ├── app.*             全域比賽狀態、歷史寫入
 │   │   ├── settings_store.*  NVS 持久化
-│   │   └── feedback.*        音效／震動介面（Phase 5 前為 no-op）
+│   │   └── feedback.*        音效與語音播報（獨立 FreeRTOS 任務）
 │   └── ui/
 │       ├── ui.h  ui_theme.*  圓形螢幕版面基礎、轉場與動畫工具
 │       ├── fonts.h           中文子集字型宣告
 │       ├── fonts/            font_tc_16/22/30.c（由 gen_fonts.py 產生）
 │       └── screen_*.cpp      九個畫面
-├── assets/
-│   └── srmodels.bin          esp-sr 語音模型（你好小智 + mn7_cn + fst）
 ├── tools/
 │   ├── serial_watch.py       擷取序列埠輸出（畫面異常時第一個跑這個）
 │   ├── gen_fonts.py          從原始碼字串常值產生中文子集字型
-│   ├── gen_voice_clips.py    產生倒數語音片段（piper TTS）
-│   ├── gen_sr_model.sh       重新打包語音模型
-│   └── pio_extra_sr_model.py 燒錄時把模型寫進 model 分割區
+│   └── gen_voice_clips.py    產生倒數與播報語音片段（piper TTS）
 ├── test/
 │   └── test_match_core/      23 個計分核心單元測試
 ├── docs/
 │   ├── SPEC.md               需求規格
 │   ├── DECISIONS.md          實作決策與規格偏離
-│   ├── MOTION.md             轉場與獲勝動畫設計
-│   └── VOICE.md              離線語音控制
+│   └── MOTION.md             轉場與獲勝動畫設計
 └── reference/                官方 repo（gitignored，389MB）
 ```
 
@@ -71,9 +65,9 @@ beyblade-scoreboard/
 | Arduino ESP32 core | 3.2.0 | 與官方 `Examples/Arduino-V3.2.0` 一致 |
 | LVGL | 8.4.0 | PlatformIO registry（與官方隨附版本相同） |
 | ST77916 / CST816 驅動 | — | 官方 repo `Examples/Arduino-V3.2.0/examples/01_lvgl_demo`，原樣複製 |
-| Noto Sans CJK TC | — | 中文字型來源（OFL 授權，可嵌入）。只嵌入實際用到的漢字子集（目前 107 字） |
+| Noto Sans CJK TC | — | 中文字型來源（OFL 授權，可嵌入）。只嵌入實際用到的漢字子集（目前 99 字） |
 | lv_font_conv | latest | 字型子集產生器（Node，僅開發時需要） |
-| esp-sr | Arduino core 內建 | 語音辨識。模型自行打包（見 docs/VOICE.md） |
+| piper TTS | latest | 語音片段合成（Python，僅開發時需要） |
 | Unity（測試） | 2.6.1 | 僅 native 環境 |
 
 > PlatformIO **官方**的 `espressif32` 平台仍停在 Arduino core 2.0.x，無法建置官方範例，
@@ -260,15 +254,16 @@ struct MatchRecord {          // 52 bytes
 
 ## 8. 已知限制
 
-1. **新增中文字串後必須重跑 `tools/gen_fonts.py`** —— 嵌入的是實際用到的漢字子集（目前 107 字，以 `tools/gen_fonts.py --list` 為準），
+1. **新增中文字串後必須重跑 `tools/gen_fonts.py`** —— 嵌入的是實際用到的漢字子集（目前 99 字，以 `tools/gen_fonts.py --list` 為準），
    沒收錄的字會在螢幕上變成空白方塊，而且**編譯不會報錯**。見下方第 13 節。
 2. **玩家名稱只能從 12 組預設中選** —— 圓形螢幕放不下可用的鍵盤。清單在 `src/ui/screen_names.cpp`。
 3. **歷史紀錄沒有時間戳** —— `timestamp` 恆為 0。RTC **硬體確實存在**（實測 0x51 有回應），
    純粹是還沒實作 `nowEpoch()`。
 4. **沒有自動休眠** —— 設定欄位已保留但屬 Phase 5。
-5. **沒有震動** —— 板上沒有震動馬達，要外接才能實作。音效已實作（合成音，見 docs/VOICE.md 第 9 節）。
+5. **沒有震動** —— 板上沒有震動馬達，要外接才能實作。音效與語音播報已實作（見第 9 節）。
 6. **沒有電池電量顯示** —— BQ27220 屬 Phase 5，實測 0x55 有回應，官方有 `02_lvgl_BQ27220` 範例。
-7. **語音辨識尚未實際測試** —— 模型已確認載入、命令已註冊，但還沒有人對著板子講話。見 `docs/VOICE.md`。
+7. **麥克風沒有任何用途** —— ES7210 焊在板上且實測有訊號，但離線語音辨識已移除，
+   正式韌體只開 I2S 的 TX 通道。要驗證麥克風請用 `audio_probe`。
 8. **勝利類型必須手動選擇** —— 不自動偵測爆裂／出界／Xtreme Finish，那需要競技場端的額外感測器。
 9. **顯示與觸控尚未經人眼確認** —— 見下節。
 
@@ -288,33 +283,43 @@ struct MatchRecord {          // 52 bytes
 
 ---
 
-## 9. 後續音效整合方式
+## 9. 音效與語音播報
 
-`src/app/feedback.h` 已定義好介面，呼叫點散佈在倒數與計分流程中：
+硬體（規格第 10 節）：
+
+```
+Codec ES8311 / 喇叭致能 GPIO9
+I2S: MCLK 2, BCLK 48, LRCK 38, DOUT 47
+```
+
+`src/audio/audio_bus.*` 擁有 I2S 與 codec，`src/app/feedback.*` 是唯一的使用者：
 
 ```cpp
-enum class Sfx { Tick, Go, ScoreNormal, ScoreBurst, ScoreXtreme, Undo, RoundEnd, MatchWin };
-void feedbackPlay(Sfx);
-void feedbackHaptic(uint16_t ms);
+void feedbackPlay(Sfx sfx);                              // 短提示音
+void feedbackAnnounce(Voice first, Voice second = ...);  // 拼句播報
+void feedbackHaptic(uint16_t ms);                        // 板上無馬達，目前 no-op
 ```
 
-第一版是 no-op，且已先檢查 `enableSound` / `enableVibration` 設定。
-**Phase 5 只需要改寫 `feedback.cpp`，其他檔案一行都不用動。**
+播放跑在自己的 FreeRTOS 任務（優先權 6，釘在 core 0）。I2S 的 DMA 只有約 65ms
+且 `auto_clear = true`，餵不及會直接輸出靜音 —— 這是優先權訂得高的原因，
+放在 LVGL 執行緒則會造成畫面卡頓。呼叫端一律非阻塞：佇列滿了就丟棄，
+音效過期沒有意義。
 
-硬體（規格第 10 節，官方 repo 已含 `es8311` 與 `es7210` 函式庫）：
+**素材不放檔案系統。** 倒數（Three / Two / One / Go Shoot!）與播報
+（Player One / Burst Finish / Wins ...）是 `tools/gen_voice_clips.py` 在 Mac 上
+用 piper TTS 合成、直接嵌成 C 陣列的 PCM（22.05kHz / 16bit / mono，合計約 264KB）；
+其餘提示音在板上即時合成正弦波。發音、語氣、語速都在產生階段決定，
+板子只要把樣本推進 I2S，不需要檔案系統也沒有讀檔延遲。
 
+取樣率 22.05kHz 是刻意選的：齒擦音（Xtreme / Finish 的 sh、th）落在 4–8kHz，
+16kHz 只有 8kHz 頻寬會把它們削掉；22.05k 給到 11kHz 頻寬就夠，
+而且是 piper 的原生輸出取樣率，產生片段時不必重新取樣。44.1k 只會讓體積翻倍。
+
+改動語音內容後要重跑：
+
+```bash
+python3 tools/gen_voice_clips.py    # 注意是系統 python3，.venv 裡沒有 piper
 ```
-Codec ES8311 / MIC ES7210 / 喇叭致能 GPIO9
-I2S: MCLK 2, BCLK 48, LRCK 38, DOUT 47, DIN 39
-```
-
-素材放 `littlefs` 分割區（`partitions.csv` 已預留 12MB）。
-官方 Arduino 範例 `03_audio_out_no_tf` 與 `05_audio_out_tf` 是可直接參考的起點。
-
-規劃音效：`Beyblade!`、`3、2、1、Let it Rip!`、得分提示音、勝利音、Xtreme Finish 音效。
-
-> 規格第 10 節明訂「不得因音訊功能影響第一版計分器穩定性」——
-> 這是把音訊做成 no-op 介面而非直接整合的原因。
 
 ---
 
@@ -380,7 +385,7 @@ I2S: MCLK 2, BCLK 48, LRCK 38, DOUT 47, DIN 39
 | 2 | 基本計分器：P1/P2、+1、重設、目標分數判定、勝者畫面 | 完成（23 項單元測試） |
 | 3 | 勝利類型：普通／爆裂／Xtreme、可設定點數、局數紀錄 | 完成（含測試） |
 | 4 | 完整 UX：倒數、撤銷、玩家名稱、賽制設定、儲存、歷史 | 完成（待實機驗證） |
-| 5 | 音效、震動、IMU、電池、自動休眠 | 介面已預留，未實作 |
+| 5 | 音效與語音播報（已實作）／震動、IMU、電池、自動休眠（未實作） | 部分完成 |
 | 6 | 3D 列印外殼 | 待實測尺寸（見第 10 節） |
 | — | 中文 UI、轉場與獲勝動畫（規格外追加） | 完成（待實機驗證） |
 
@@ -419,8 +424,8 @@ TouchPad_Version:0x00  ChipID:0xb5  ProjID:0x71  FwVersion:0x04
 
 七個裝置全部在線。這代表：
 
-- **離線語音控制可行** —— ES8311 + ES7210 都在，麥克風實測有訊號
-  （環境噪音 peak 150–400，拍手會跳到數千）
+- **音效與語音播報可行** —— ES8311 在線，喇叭實測會發聲；
+  ES7210 也在（環境噪音 peak 150–400，拍手會跳到數千），只是目前沒有用途
 - **歷史紀錄時間戳可做** —— RTC 存在，只差 `nowEpoch()` 的實作
 - **電池電量、IMU 搖晃操作可做** —— 都屬 Phase 5
 
@@ -439,7 +444,7 @@ TouchPad_Version:0x00  ChipID:0xb5  ProjID:0x71  FwVersion:0x04
 ## 13. 中文字型：新增字串後必須重新產生
 
 UI 是中文的，但嵌入的**不是全字集** —— Noto Sans CJK 全字集要 1–2MB，
-這個專案目前用到 107 個漢字／全形符號（實際數量跑 `tools/gen_fonts.py --list` 會印出來）。子集由 `tools/gen_fonts.py` 從原始碼自動掃描產生。
+這個專案目前用到 99 個漢字／全形符號（實際數量跑 `tools/gen_fonts.py --list` 會印出來）。子集由 `tools/gen_fonts.py` 從原始碼自動掃描產生。
 
 ### 何時要重跑
 

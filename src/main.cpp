@@ -15,7 +15,6 @@
 #include "drivers/pcf85063.h"
 #include "ui/ui.h"
 #include "audio/audio_bus.h"
-#include "voice/voice.h"
 
 void setup() {
     Serial.begin(115200);
@@ -27,7 +26,7 @@ void setup() {
     Lvgl_Init();
 
     // --- 應用層 ---
-    // 音訊匯流排要先於語音與音效：兩者共用同一條 I2S。
+    // 音訊匯流排要先於 feedbackInit()：音效任務直接寫這條 I2S。
     bey::audioBusBegin();
 
     bey::g_store.begin();
@@ -39,30 +38,12 @@ void setup() {
     bey::power::begin();
     bey::ui::init();
 
-    // 語音是加分項，不是必要條件。模型缺失或麥克風壞掉時只是沒有語音，
-    // 觸控計分完全不受影響，所以這裡不檢查回傳值中止開機。
-    bey::voiceBegin();
-
-    Serial.printf("[bey] ready, heap=%u psram=%u voice=%s\n",
+    Serial.printf("[bey] ready, heap=%u psram=%u\n",
                   static_cast<unsigned>(ESP.getFreeHeap()),
-                  static_cast<unsigned>(ESP.getFreePsram()),
-                  bey::voiceStatusText());
+                  static_cast<unsigned>(ESP.getFreePsram()));
 }
 
 void loop() {
-    // 語音辨識在自己的任務裡跑；命令經佇列送到這裡，
-    // 才能在 LVGL 執行緒上安全地切換畫面。
-    bey::VoiceCmd cmd;
-    while (bey::voicePoll(cmd)) {
-        // 播報期間收到的辨識結果一律丟棄。AEC 是關的，功放正放著英文，
-        // 麥克風聽得見自己 —— 這裡收到的東西很可能是板子自己講的。
-        // 仍然要把佇列讀空，否則播報結束後會一次湧出一串過期命令。
-        if (bey::feedbackIsSpeaking()) {
-            continue;
-        }
-        bey::ui::handleVoiceCommand(cmd);
-    }
-
 #if BEY_DEBUG_SERIAL
     // 除錯用序列埠指令。板子不在手邊時，這是唯一能確認版面實際長相的方法：
     // 's' 把目前畫面傳回開發機，數字鍵切到指定畫面，'a'/'b' 模擬得分。
@@ -106,7 +87,7 @@ void loop() {
             // 模擬得分，用來在沒有觸控的情況下把一場比賽跑完
             // （驗證計分流程、轉場、播報與歷史紀錄）。
             case 'a':
-                bey::ui::applyResultAndAdvance(bey::ResultType::P1Normal);
+                bey::ui::applyResultAndAdvance(bey::ResultType::P1Spin);
                 break;
             case 'b':
                 bey::ui::applyResultAndAdvance(bey::ResultType::P2Burst);
