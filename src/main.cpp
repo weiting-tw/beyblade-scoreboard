@@ -10,6 +10,7 @@
 #include "LVGL_Driver.h"
 #include "app/app.h"
 #include "app/feedback.h"
+#include "app/gesture.h"
 #include "app/power.h"
 #include "app/screenshot.h"
 #include "drivers/pcf85063.h"
@@ -42,6 +43,28 @@ void setup() {
                   static_cast<unsigned>(ESP.getFreeHeap()),
                   static_cast<unsigned>(ESP.getFreePsram()));
 }
+
+namespace {
+
+// 邊緣旋轉調音量。一格 30 度、一圈 12 格，每格 5 ——
+// 轉一圈調 60，手感接近實體旋鈕。
+void applyRotation(int8_t steps) {
+    if (steps == 0) {
+        return;
+    }
+    bey::AppSettings& s = bey::g_store.mutableSettings();
+    int v = static_cast<int>(s.volume) + steps * 5;
+    v = (v < 0) ? 0 : ((v > 100) ? 100 : v);
+    if (v == s.volume) {
+        return;
+    }
+    s.volume = static_cast<uint8_t>(v);
+    bey::audioBusSetVolume(s.volume);
+    // 出一聲，否則只是無聲地改數字，使用者不知道自己轉到哪了。
+    bey::feedbackPlay(bey::Sfx::Tick);
+}
+
+}  // namespace
 
 void loop() {
 #if BEY_DEBUG_SERIAL
@@ -97,6 +120,16 @@ void loop() {
         }
     }
 #endif  // BEY_DEBUG_SERIAL
+
+    // 手勢。旋轉用累積格數，滑動用單一事件。
+    applyRotation(bey::gestureTakeRotation());
+
+    bey::Gesture g;
+    while (bey::gesturePoll(g)) {
+        if (g == bey::Gesture::SwipeUp) {
+            bey::ui::goBack();
+        }
+    }
 
     Lvgl_Loop();
     vTaskDelay(pdMS_TO_TICKS(5));

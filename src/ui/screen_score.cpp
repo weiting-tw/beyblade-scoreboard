@@ -76,15 +76,15 @@ void applyResultAndAdvance(ResultType r) {
     if (g_match.finished()) {
         recordFinishedMatch();
         feedbackPlay(Sfx::MatchWin);
-        // 比賽結束時只播勝者，不播這一分是怎麼拿的 —— 佇列只有三格，
-        // 得分播報 + 勝利音效 + 勝者播報會是第四個項目，剛好被丟掉；
-        // 而且到了這一刻「誰贏了」本來就比「最後一分怎麼來的」重要。
+        // 先播這一分怎麼拿的，再播誰贏 ——「Xtreme Finish, Player One, Wins」。
+        // 決勝的那一分往往是整場最精彩的（極限勝一次三分直接結束），
+        // 只播勝者等於把它吞掉。三段放同一個佇列項目，不會被拆散。
         switch (g_match.winner()) {
             case Winner::P1:
-                feedbackAnnounce(Voice::PlayerOne, Voice::Wins);
+                feedbackAnnounce(announceWhat(r), Voice::PlayerOne, Voice::Wins);
                 break;
             case Winner::P2:
-                feedbackAnnounce(Voice::PlayerTwo, Voice::Wins);
+                feedbackAnnounce(announceWhat(r), Voice::PlayerTwo, Voice::Wins);
                 break;
             default:
                 break;  // 平手沒有錄對應的片段，維持只有勝利音效
@@ -128,6 +128,23 @@ void doReset() {
     showScore();
 }
 
+void doEnd() {
+    // 跟局結果頁的「結束」同一個意思：依目前比分判勝負並記錄。
+    // 但 0:0 沒有任何比賽內容，記一場平手進歷史紀錄只是雜訊，直接回首頁。
+    if (g_match.scoreP1() == 0 && g_match.scoreP2() == 0) {
+        g_match.reset();
+        showHome();
+        return;
+    }
+    g_match.forceFinish();
+    recordFinishedMatch();
+    showComplete();
+}
+
+// 沒有東西可撤銷時，這個位置改放「結束」。仍然要二次確認 —— 撤銷步數用完
+// （堆疊只有五步）時分數不見得是 0，誤觸就整場沒了。
+void onEnd(lv_event_t*) { showConfirmOverlay("結束比賽？", doEnd); }
+
 void onReset(lv_event_t*) {
     // 規格第 9 節：重設必須二次確認。
     showConfirmOverlay("重設比賽？", doReset);
@@ -152,6 +169,7 @@ void makeLongPressArea(lv_obj_t* parent, lv_coord_t dx, lv_event_cb_t cb) {
 }  // namespace
 
 void showScore(Nav nav) {
+    setCurrentScreen(ScreenId::Score);
     const MatchConfig& cfg = g_match.config();
 
     lv_obj_t* s = makeScreen();
@@ -206,10 +224,14 @@ void showScore(Nav nav) {
     makeButton(s, "P1 勝", -74, 25, 140, 56, colP1(), onP1Win, nullptr);
     makeButton(s, "P2 勝", 74, 25, 140, 56, colP2(), onP2Win, nullptr);
 
-    lv_obj_t* undo = makeButton(s, "撤銷", -55, 95, 104, 48, colMuted(), onUndo,
-                                nullptr, &font_tc_16);
-    if (g_match.undoAvailable() == 0) {
-        lv_obj_add_state(undo, LV_STATE_DISABLED);
+    // 第一局沒有任何東西可以撤銷，放一顆永遠按不下去的鈕只是佔位置。
+    // 這時改放「結束」，讓這個位置在任何情況下都有用。
+    if (g_match.undoAvailable() > 0) {
+        makeButton(s, "撤銷", -55, 95, 104, 48, colMuted(), onUndo, nullptr,
+                   &font_tc_16);
+    } else {
+        makeButton(s, "結束", -55, 95, 104, 48, colMuted(), onEnd, nullptr,
+                   &font_tc_16);
     }
     makeButton(s, "重設", 55, 95, 104, 48, colDanger(), onReset, nullptr,
                &font_tc_16);

@@ -16,7 +16,9 @@ namespace bey {
 namespace ui {
 namespace {
 
-void onNext(lv_event_t*) { showScore(Nav::Forward); }
+// 每一局都要重新發射，所以每一局都要倒數 —— 原本直接跳進計分頁，
+// 只有第一局喊得到 321。
+void onNext(lv_event_t*) { showCountdown(); }
 
 void onUndo(lv_event_t*) {
     if (g_match.undo()) {
@@ -38,6 +40,7 @@ void onEnd(lv_event_t*) { showConfirmOverlay("結束比賽？", doEnd); }
 }  // namespace
 
 void showRound() {
+    setCurrentScreen(ScreenId::Round);
     lv_obj_t* s = makeScreen();
 
     const ScoreEvent* ev = g_match.lastEvent();

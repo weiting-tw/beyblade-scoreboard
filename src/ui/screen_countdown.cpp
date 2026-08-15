@@ -67,6 +67,10 @@ void tick(lv_timer_t*) {
 }  // namespace
 
 void showCountdown() {
+    setCurrentScreen(ScreenId::Countdown);
+    // 上一局的勝利播報可能還在播。倒數有自己的時間軸（一秒一拍），
+    // 讓它排在後面的話畫面已經在數秒、聲音還落後一大截。
+    feedbackStop();
     killTimer();
     s_value = 3;
 

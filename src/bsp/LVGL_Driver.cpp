@@ -6,6 +6,7 @@
 ******************************************************************************/
 #include "LVGL_Driver.h"
 
+#include "../app/gesture.h"
 #include "../app/screenshot.h"
 
 static lv_disp_draw_buf_t draw_buf;
@@ -49,23 +50,50 @@ void Lvgl_Touchpad_Read( lv_indev_drv_t * indev_drv, lv_indev_data_t * data )
    * 按住一秒就是 33 行，反而看不出點在哪。 */
   static bool wasDown = false;
 #endif
-  if (touch_data.points != 0x00) {
+  const bool down = (touch_data.points != 0x00);
+  bey::touchFeed(touch_data.x, touch_data.y, down, (uint8_t)touch_data.gesture);
+
+  if (down) {
     data->point.x = touch_data.x;
     data->point.y = touch_data.y;
     data->state = LV_INDEV_STATE_PR;
 #if BEY_DEBUG_SERIAL
+    /* 連續記錄軌跡：畫圈這種手勢 CST816 判不出來，要自己從座標算角度，
+     * 所以需要整條軌跡而不只是起點。移動超過 3px 才印，避免手指靜止時洗版。 */
+    static uint16_t lastX = 0, lastY = 0;
+    const int dx = (int)touch_data.x - (int)lastX;
+    const int dy = (int)touch_data.y - (int)lastY;
     if (!wasDown) {
-      printf("[touch] x=%3u y=%3u\r\n", touch_data.x, touch_data.y);
+      printf("[down] x=%3u y=%3u\r\n", touch_data.x, touch_data.y);
+      lastX = touch_data.x; lastY = touch_data.y;
+    } else if (dx * dx + dy * dy > 9) {
+      printf("[move] x=%3u y=%3u\r\n", touch_data.x, touch_data.y);
+      lastX = touch_data.x; lastY = touch_data.y;
     }
     wasDown = true;
 #endif
   } else {
     data->state = LV_INDEV_STATE_REL;
 #if BEY_DEBUG_SERIAL
+    if (wasDown) {
+      printf("[up]\r\n");
+    }
     wasDown = false;
 #endif
   }
-  if (touch_data.gesture != NONE ) {    
+  if (touch_data.gesture != NONE ) {
+#if BEY_DEBUG_SERIAL
+    /* CST816 自己就會判手勢，不必從座標軌跡重算。先量它實際靈不靈敏、
+     * 會不會把單純的點擊誤判成滑動，再決定要不要接進應用層。 */
+    static const char *kNames[] = {
+      "NONE", "UP", "DOWN", "LEFT", "RIGHT", "CLICK",
+      "?6", "?7", "?8", "?9", "?A", "DOUBLE", "LONG"
+    };
+    const uint8_t gi = (uint8_t)touch_data.gesture;
+    printf("[gesture] %s (0x%02X) x=%3u y=%3u\r\n",
+           gi < (sizeof(kNames) / sizeof(kNames[0])) ? kNames[gi] : "?",
+           gi, touch_data.x, touch_data.y);
+#endif
   }
   touch_data.x = 0;
   touch_data.y = 0;

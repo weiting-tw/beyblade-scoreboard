@@ -12,6 +12,28 @@ namespace ui {
 
 void init();  // 建立第一個畫面（首頁）
 
+// 目前在哪一頁。手勢「返回」要知道該退到哪裡，而 LVGL 只知道有個
+// lv_obj 是目前畫面，不知道它在流程裡的位置。
+enum class ScreenId : uint8_t {
+    Home,
+    Format,
+    Ready,
+    Names,
+    Countdown,
+    Score,
+    Round,
+    Complete,
+    Settings,
+    History,
+};
+
+void setCurrentScreen(ScreenId id);
+ScreenId currentScreen();
+
+// 退回上一層。比賽進行中的畫面（倒數、計分、局結果、完成）不做任何事 ——
+// 那些頁面退出去會讓人搞不清楚比賽還在不在，要離開請用畫面上的按鈕。
+void goBack();
+
 void showHome();      // 頁面一：首頁／待機
 void showFormat();    // 頁面二：賽制選擇
 void showReady();     // 頁面三：比賽準備
@@ -38,6 +60,7 @@ void showConfirmOverlay(const char* message, void (*onConfirm)());
 
 // 關掉目前的疊層。沒有疊層時是 no-op。
 void closeOverlay();
+
 
 }  // namespace ui
 }  // namespace bey

@@ -41,10 +41,13 @@ SAMPLE_RATE = 22050
 # 全部用英文：Beyblade 的官方術語（Burst / Xtreme Finish）本來就是英文，
 # 中譯反而拗口。
 CLIPS = [
-    # 倒數
-    ("clip_three", "Three"),
-    ("clip_two", "Two"),
-    ("clip_one", "One"),
+    # 倒數。數字後面刻意加句點：piper 對單獨一個短音節沒有上下文可依據，
+    # 韻律預測會亂跳 ——「Two」在 length_scale 1.1 是 0.186s、調到 1.3 反而
+    # 掉到 0.163s。加了句點模型才當成完整語句處理，「Two.」在兩種語速下都
+    # 穩定在 0.26s 左右，比原本長三成，倒數的節奏才不會只有它一閃而過。
+    ("clip_three", "Three."),
+    ("clip_two", "Two."),
+    ("clip_one", "One."),
     ("clip_go", "Go Shoot!"),
     # 播報 —— 誰
     ("clip_player_one", "Player One"),

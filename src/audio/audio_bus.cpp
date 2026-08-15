@@ -91,7 +91,15 @@ void audioBusSetVolume(uint8_t volume) {
     if (volume > 100) {
         volume = 100;
     }
-    es8311_voice_volume_set(s_es8311, volume, nullptr);
+    // 直接把 100 餵給 codec 會破音：語音片段在產生階段已經正規化到 85% 滿
+    // 刻度，再用 0dB 推這顆小喇叭就超過它的線性範圍了。UI 的 0..100 映射到
+    // codec 的 0..kCodecMax，使用者仍有完整刻度，只是頂端不再是失真區。
+    //
+    // 80 是保守起點，實際的破音臨界沒有量過 —— 覺得不夠大聲就往上調，
+    // 開始糊掉就往下。
+    constexpr uint8_t kCodecMax = 80;
+    es8311_voice_volume_set(s_es8311,
+                            static_cast<int>(volume) * kCodecMax / 100, nullptr);
 }
 
 }  // namespace bey

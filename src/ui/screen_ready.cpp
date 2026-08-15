@@ -27,6 +27,7 @@ lv_obj_t* nameLabel(lv_obj_t* parent, const char* text, lv_color_t col,
 }  // namespace
 
 void showReady() {
+    setCurrentScreen(ScreenId::Ready);
     const MatchConfig& cfg = g_store.settings().match;
 
     lv_obj_t* s = makeScreen();

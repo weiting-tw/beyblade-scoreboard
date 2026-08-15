@@ -43,11 +43,20 @@ void feedbackInit();
 // 播放音效。enableSound 為 false 時直接略過。
 void feedbackPlay(Sfx sfx);
 
-// 播報一句，例如「Player One」+「Burst Finish」。
+// 播報一句，最多三段。例如得分時「Player One」+「Burst Finish」，
+// 比賽結束時「Xtreme Finish」+「Player One」+「Wins」。
 //
-// 兩段放在同一個佇列項目而不是連送兩次：佇列只有三格，滿的時候後送的會被
-// 丟棄，分兩次送就可能只播出半句。enableAnnounce 為 false 時直接略過。
-void feedbackAnnounce(Voice first, Voice second = Voice::None);
+// 整句放同一個佇列項目而不是連送幾次：佇列只有三格，滿的時候後送的會被
+// 丟棄，分次送就可能只播出半句。enableAnnounce 為 false 時直接略過。
+void feedbackAnnounce(Voice first, Voice second = Voice::None,
+                      Voice third = Voice::None);
+
+// 立刻停止播放並清空佇列。
+//
+// 用在「新動作把舊聲音蓋掉」的時機，例如按下一局時上一局的勝利播報還沒
+// 播完 —— 佇列是 FIFO，不清的話倒數的 Three 會排在播報後面，畫面已經在
+// 數秒了聲音還落後一大截，兩者糊在一起。
+void feedbackStop();
 
 // 震動回饋。enableVibration 為 false 時直接略過。
 void feedbackHaptic(uint16_t ms);

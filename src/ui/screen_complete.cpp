@@ -23,6 +23,7 @@ void onHome(lv_event_t*) { showHome(); }
 }  // namespace
 
 void showComplete() {
+    setCurrentScreen(ScreenId::Complete);
     lv_obj_t* s = makeScreen();
 
     const char* wname = g_match.winnerName();

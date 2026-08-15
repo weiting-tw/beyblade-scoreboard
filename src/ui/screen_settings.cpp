@@ -276,6 +276,7 @@ void makeActionRow(lv_obj_t* parent, const char* text, lv_color_t col,
 }  // namespace
 
 void showSettings() {
+    setCurrentScreen(ScreenId::Settings);
     const AppSettings& s = g_store.settings();
 
     lv_obj_t* scr = makeScreen();

@@ -27,6 +27,7 @@ void onHistory(lv_event_t*) { showHistory(); }
 }  // namespace
 
 void showHome() {
+    setCurrentScreen(ScreenId::Home);
     lv_obj_t* s = makeScreen();
 
     makeLabel(s, "BEYBLADE X", &font_tc_30, colAccent(), 0, -115);

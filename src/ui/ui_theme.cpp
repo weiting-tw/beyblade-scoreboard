@@ -250,5 +250,29 @@ lv_obj_t* makeButton(lv_obj_t* parent, const char* text, lv_coord_t dx,
     return btn;
 }
 
+namespace {
+ScreenId s_current = ScreenId::Home;
+}
+
+void setCurrentScreen(ScreenId id) { s_current = id; }
+ScreenId currentScreen() { return s_current; }
+
+void goBack() {
+    switch (s_current) {
+        case ScreenId::Format:
+        case ScreenId::Names:
+            showReady();
+            break;
+        case ScreenId::Ready:
+        case ScreenId::Settings:
+        case ScreenId::History:
+            showHome();
+            break;
+        default:
+            // 首頁沒有上一層；比賽中的畫面刻意不支援手勢返回。
+            break;
+    }
+}
+
 }  // namespace ui
 }  // namespace bey

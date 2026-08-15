@@ -59,9 +59,13 @@ struct AudioMsg {
     Sfx sfx;
     Voice a;
     Voice b;
+    Voice c;
 };
 
 TaskHandle_t s_task = nullptr;
+
+// 要求中止目前這段播放。playPcm 每個 chunk 檢查一次，所以最慢 32ms 就停。
+volatile bool s_abort = false;
 
 // 一次處理 512 frame（22.05kHz 下約 23ms）。I2S 的 DMA 只有
 // 6 x 240 = 1440 frame（約 65ms），
@@ -137,6 +141,9 @@ bool getVoiceClip(Voice v, const int16_t** data, unsigned* len) {
 void playPcm(const int16_t* mono, unsigned len) {
     unsigned done = 0;
     while (done < len) {
+        if (s_abort) {
+            return;
+        }
         const unsigned n =
             (len - done < kChunkFrames) ? (len - done) : kChunkFrames;
         for (unsigned i = 0; i < n; ++i) {
@@ -202,6 +209,23 @@ constexpr uint32_t kAmpWarmupMs = 35;
 // 否則每個數字之間功放都會關掉再開，每段都要重新爬斜坡。
 constexpr uint32_t kAmpIdleMs = 1500;
 
+// 播報時段與段之間的停頓。連著播「Xtreme Finish」「Player One」「Wins」
+// 三段中間沒有空隙的話，會糊成一長串聽不出斷句。
+constexpr uint32_t kAnnounceGapMs = 140;
+
+void playSilence(uint32_t ms) {
+    int total = static_cast<int>(kAudioSampleRate) * static_cast<int>(ms) / 1000;
+    while (total > 0) {
+        const int n = (total < kChunkFrames) ? total : kChunkFrames;
+        for (int i = 0; i < n * 2; ++i) {
+            s_chunk[i] = 0;
+        }
+        audioBusI2S().write(reinterpret_cast<uint8_t*>(s_chunk),
+                            static_cast<size_t>(n) * 2 * sizeof(int16_t));
+        total -= n;
+    }
+}
+
 // 推一段靜音把 DMA 緩衝區裡的尾巴擠出去。
 // i2s.write() 是「排進 DMA 就返回」，不是「已經放完」。
 void flushDma() {
@@ -230,6 +254,9 @@ void audioTask(void*) {
             continue;
         }
 
+        // 每則新訊息都從沒有中止要求的狀態開始。
+        s_abort = false;
+
         const bool isAnnounce = (msg.sfx == Sfx::Count);
         const int idx = static_cast<int>(msg.sfx);
         if (!isAnnounce && (idx < 0 || idx >= kSfxCount)) {
@@ -249,10 +276,15 @@ void audioTask(void*) {
         unsigned clipLen = 0;
 
         if (isAnnounce) {
-            const Voice parts[2] = {msg.a, msg.b};
+            const Voice parts[3] = {msg.a, msg.b, msg.c};
+            bool first = true;
             for (const Voice v : parts) {
                 if (getVoiceClip(v, &clip, &clipLen)) {
+                    if (!first) {
+                        playSilence(kAnnounceGapMs);
+                    }
                     playPcm(clip, clipLen);
+                    first = false;
                 }
             }
         } else if (getClip(msg.sfx, &clip, &clipLen)) {
@@ -307,19 +339,29 @@ void feedbackPlay(Sfx sfx) {
         return;
     }
     // 佇列滿了就丟棄，絕不阻塞呼叫端（多半是 LVGL 執行緒）。
-    AudioMsg msg{sfx, Voice::None, Voice::None};
+    AudioMsg msg{sfx, Voice::None, Voice::None, Voice::None};
     xQueueSend(s_queue, &msg, 0);
 }
 
-void feedbackAnnounce(Voice first, Voice second) {
+void feedbackAnnounce(Voice first, Voice second, Voice third) {
     if (!g_store.settings().enableAnnounce) {
         return;
     }
     if (s_queue == nullptr || first == Voice::None) {
         return;
     }
-    AudioMsg msg{Sfx::Count, first, second};
+    AudioMsg msg{Sfx::Count, first, second, third};
     xQueueSend(s_queue, &msg, 0);
+}
+
+void feedbackStop() {
+    if (s_queue == nullptr) {
+        return;
+    }
+    // 先設中止旗標再清佇列：反過來的話清完之後、旗標設好之前，
+    // 音效任務可能又取走一則剛送進來的訊息。
+    s_abort = true;
+    xQueueReset(s_queue);
 }
 
 void feedbackHaptic(uint16_t ms) {

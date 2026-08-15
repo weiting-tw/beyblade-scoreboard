@@ -92,6 +92,7 @@ lv_obj_t* makeRoller(lv_obj_t* parent, lv_coord_t dx, lv_color_t col,
 }  // namespace
 
 void showNames() {
+    setCurrentScreen(ScreenId::Names);
     const MatchConfig& cfg = g_store.settings().match;
 
     lv_obj_t* s = makeScreen();

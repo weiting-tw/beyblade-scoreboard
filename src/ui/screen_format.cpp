@@ -63,6 +63,7 @@ void onNext(lv_event_t*) {
 }  // namespace
 
 void showFormat() {
+    setCurrentScreen(ScreenId::Format);
     s_target = g_store.settings().match.targetScore;
     if (s_target < kMinTarget) {
         s_target = kMinTarget;
