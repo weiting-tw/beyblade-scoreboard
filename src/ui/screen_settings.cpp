@@ -269,7 +269,10 @@ void showSettings() {
 
     lv_obj_t* scr = makeScreen();
     lv_obj_add_event_cb(scr, onScreenDel, LV_EVENT_DELETE, nullptr);
-    makeLabel(scr, "設定", &font_tc_22, colAccent(), 0, -145);
+    // dy -145 時字框 y 21.5~48.5，與狀態晶片（-152，字框 18.5~37.5）重疊 16px，
+    // 實機截圖上兩者疊在一起。移到 -132 後只剩 3px 的行高邊緣重疊，墨跡不會碰到；
+    // 下方容器頂端在 y=70，仍有 8.5px 間隙，不必動容器。
+    makeLabel(scr, "設定", &font_tc_22, colAccent(), 0, -132);
 
     lv_obj_t* cont = lv_obj_create(scr);
     lv_obj_set_size(cont, 230, 210);

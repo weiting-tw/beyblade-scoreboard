@@ -57,7 +57,10 @@ void makeRecordRow(lv_obj_t* parent, const MatchRecord& rec) {
 
 void showHistory() {
     lv_obj_t* scr = makeScreen();
-    makeLabel(scr, "歷史紀錄", &font_tc_22, colAccent(), 0, -145);
+    // dy -145 時字框 y 21.5~48.5，與狀態晶片（-152，字框 18.5~37.5）重疊 16px，
+    // 實機截圖上兩者疊在一起。移到 -132 後只剩 3px 的行高邊緣重疊，墨跡不會碰到；
+    // 下方容器頂端在 y=70，仍有 8.5px 間隙，不必動容器。
+    makeLabel(scr, "歷史紀錄", &font_tc_22, colAccent(), 0, -132);
 
     const int n = g_store.historyCount();
     if (n == 0) {
