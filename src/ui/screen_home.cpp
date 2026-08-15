@@ -1,5 +1,6 @@
 // 頁面一：首頁／待機（規格第 6 節）
 #include "../app/app.h"
+#include "status_chip.h"
 #include "ui.h"
 #include "ui_theme.h"
 
@@ -45,7 +46,12 @@ void showHome() {
     loadScreen(s, Nav::Back);
 }
 
-void init() { showHome(); }
+void init() {
+    // 狀態晶片要在第一個畫面之前建立。它住在 lv_layer_top，先建立才會排在
+    // Z 序最底，被 overlay 的半透明遮罩蓋住而不是浮在確認對話框上面。
+    statusChipInit();
+    showHome();
+}
 
 }  // namespace ui
 }  // namespace bey

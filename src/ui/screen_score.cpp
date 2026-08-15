@@ -3,6 +3,7 @@
 
 #include "../app/app.h"
 #include "../app/feedback.h"
+#include "status_chip.h"
 #include "ui.h"
 #include "ui_theme.h"
 
@@ -154,6 +155,9 @@ void showScore(Nav nav) {
                &font_tc_16);
 
     loadScreen(s, nav);
+    // 頂部弧帶留給這頁自己的內容，把狀態晶片收起來。
+    // 低電量時 statusChipSetHidden 會忽略這個要求。
+    statusChipSetHidden(true);
 }
 
 }  // namespace ui

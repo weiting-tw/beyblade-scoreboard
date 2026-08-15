@@ -10,6 +10,7 @@
 #include "LVGL_Driver.h"
 #include "app/app.h"
 #include "app/feedback.h"
+#include "app/power.h"
 #include "ui/ui.h"
 #include "audio/audio_bus.h"
 #include "voice/voice.h"
@@ -32,6 +33,7 @@ void setup() {
     bey::audioBusSetVolume(bey::g_store.settings().volume);
     bey::applySettingsToMatch();
     bey::feedbackInit();
+    bey::power::begin();
     bey::ui::init();
 
     // 語音是加分項，不是必要條件。模型缺失或麥克風壞掉時只是沒有語音，

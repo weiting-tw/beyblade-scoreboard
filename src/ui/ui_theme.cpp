@@ -2,6 +2,8 @@
 
 #include <cmath>
 
+#include "status_chip.h"
+
 namespace bey {
 namespace ui {
 
@@ -66,6 +68,10 @@ void loadScreen(lv_obj_t* scr, Nav nav) {
             anim = LV_SCR_LOAD_ANIM_FADE_IN;
             break;
     }
+
+    // 預設每個畫面都顯示狀態晶片；需要淨空頂部的畫面（計分、倒數、局結果）
+    // 在自己的 show 函式裡載入後再設回隱藏。
+    statusChipSetHidden(false);
 
     // auto_del = true：舊畫面連同其子物件一併釋放。
     // LV_MEM_SIZE 只有 64KB，畫面必須用完即丟。
