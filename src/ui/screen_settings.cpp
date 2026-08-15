@@ -220,7 +220,10 @@ void makeStepperRow(lv_obj_t* parent, const char* text, Field f, int stepIndex) 
     lv_obj_t* row = makeRow(parent);
     rowLabel(row, text);
 
-    stepBtn(row, "-", -96, &kSteps[stepIndex]);
+    // -96 時「-」的左緣落在 row 內座標 60，而標籤最長的一列是 XTREME，
+    // font_tc_16 下六個大寫字母約 66px，尾巴會被按鈕蓋住。往右挪到 -88 讓
+    // 標籤有 68px；右側與數值的間隙仍有 10px（兩位數時數值左緣在 120）。
+    stepBtn(row, "-", -88, &kSteps[stepIndex]);
     stepBtn(row, "+", 0, &kSteps[stepIndex + 1]);
 
     lv_obj_t* val = lv_label_create(row);
