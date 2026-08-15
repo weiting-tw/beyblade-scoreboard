@@ -43,7 +43,9 @@ beyblade-scoreboard/
 ├── assets/
 │   └── srmodels.bin          esp-sr 語音模型（你好小智 + mn7_cn + fst）
 ├── tools/
+│   ├── serial_watch.py       擷取序列埠輸出（畫面異常時第一個跑這個）
 │   ├── gen_fonts.py          從原始碼字串常值產生中文子集字型
+│   ├── gen_voice_clips.py    產生倒數語音片段（piper TTS）
 │   ├── gen_sr_model.sh       重新打包語音模型
 │   └── pio_extra_sr_model.py 燒錄時把模型寫進 model 分割區
 ├── test/
