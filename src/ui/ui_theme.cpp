@@ -3,6 +3,7 @@
 #include <cmath>
 
 #include "status_chip.h"
+#include "ui.h"
 
 namespace bey {
 namespace ui {
@@ -68,6 +69,11 @@ void loadScreen(lv_obj_t* scr, Nav nav) {
             anim = LV_SCR_LOAD_ANIM_FADE_IN;
             break;
     }
+
+    // 疊層住在 lv_layer_top，不會隨畫面切換自動消失。觸控流程的每個出口都有
+    // 明確 close()，但語音命令可以在疊層開著時直接切畫面，那條路徑繞過了所有
+    // 出口 —— 疊層就留在上面蓋住新畫面。在這裡收斂，所有切畫面的路徑都涵蓋。
+    closeOverlay();
 
     // 預設每個畫面都顯示狀態晶片；需要淨空頂部的畫面（計分、倒數、局結果）
     // 在自己的 show 函式裡載入後再設回隱藏。

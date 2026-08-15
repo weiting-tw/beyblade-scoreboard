@@ -37,6 +37,9 @@ void showWinTypeOverlay(bool forPlayer1);
 // 二次確認對話框（重設用，規格第 9 節）。
 void showConfirmOverlay(const char* message, void (*onConfirm)());
 
+// 關掉目前的疊層。沒有疊層時是 no-op。
+void closeOverlay();
+
 // 派送一個語音命令。必須在 LVGL 執行緒上呼叫（由 loop() 的 voicePoll 驅動）。
 void handleVoiceCommand(VoiceCmd cmd);
 

@@ -16,16 +16,7 @@ namespace {
 lv_obj_t* s_overlay = nullptr;
 void (*s_onConfirm)() = nullptr;
 
-// close() 一律從疊層內按鈕的事件回呼中被呼叫，此時同步 lv_obj_del 會刪掉
-// 正在派送事件的物件的祖先，導致 LVGL 回到已釋放的記憶體。
-// 因此先隱藏（使用者立刻看不到），再交給 LVGL 在下一輪 timer handler 釋放。
-void close() {
-    if (s_overlay != nullptr) {
-        lv_obj_add_flag(s_overlay, LV_OBJ_FLAG_HIDDEN);
-        lv_obj_del_async(s_overlay);
-        s_overlay = nullptr;
-    }
-}
+void close() { closeOverlay(); }
 
 // 半透明遮罩 + 全螢幕容器。
 lv_obj_t* openOverlay() {
@@ -61,6 +52,17 @@ void onConfirm(lv_event_t*) {
 }
 
 }  // namespace
+
+// 一律從疊層內按鈕的事件回呼中被呼叫，此時同步 lv_obj_del 會刪掉正在派送
+// 事件的物件的祖先，導致 LVGL 回到已釋放的記憶體。因此先隱藏（使用者立刻
+// 看不到），再交給 LVGL 在下一輪 timer handler 釋放。
+void closeOverlay() {
+    if (s_overlay != nullptr) {
+        lv_obj_add_flag(s_overlay, LV_OBJ_FLAG_HIDDEN);
+        lv_obj_del_async(s_overlay);
+        s_overlay = nullptr;
+    }
+}
 
 void showWinTypeOverlay(bool forPlayer1) {
     lv_obj_t* o = openOverlay();
