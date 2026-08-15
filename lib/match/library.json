@@ -1,0 +1,11 @@
+{
+  "name": "match",
+  "version": "0.1.0",
+  "description": "Beyblade X 計分核心（純 C++，無 Arduino 依賴，可在主機端測試）",
+  "frameworks": "*",
+  "platforms": "*",
+  "build": {
+    "srcDir": "src",
+    "includeDir": "include"
+  }
+}

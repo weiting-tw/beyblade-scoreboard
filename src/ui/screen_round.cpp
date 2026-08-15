@@ -1,0 +1,86 @@
+// 頁面六：局結果（規格第 6 節）
+//
+// 規格原本列的三顆按鈕是 [下一局] [返回計分] [結束比賽]。分數在進入本頁前
+// 就已經套用完畢，因此「下一局」與「返回計分」會是完全相同的動作。
+// 中間那顆改成 UNDO —— 剛按錯勝利方式時，這是唯一真正需要的出口。
+// 詳見 docs/DECISIONS.md。
+#include <cstdio>
+
+#include "../app/app.h"
+#include "../app/feedback.h"
+#include "ui.h"
+#include "ui_theme.h"
+
+namespace bey {
+namespace ui {
+namespace {
+
+void onNext(lv_event_t*) { showScore(); }
+
+void onUndo(lv_event_t*) {
+    if (g_match.undo()) {
+        feedbackPlay(Sfx::Undo);
+        feedbackHaptic(25);
+    }
+    showScore();
+}
+
+void doEnd() {
+    // 提前結束：分數不變，依目前比分判勝負後記錄結果。
+    g_match.forceFinish();
+    recordFinishedMatch();
+    showComplete();
+}
+
+void onEnd(lv_event_t*) { showConfirmOverlay("END MATCH?", doEnd); }
+
+}  // namespace
+
+void showRound() {
+    lv_obj_t* s = makeScreen();
+
+    const ScoreEvent* ev = g_match.lastEvent();
+
+    char buf[48];
+    std::snprintf(buf, sizeof(buf), "ROUND %d",
+                  ev != nullptr ? ev->roundNumber : g_match.round());
+    makeLabel(s, buf, &lv_font_montserrat_20, colSubtle(), 0, -130);
+
+    if (ev != nullptr) {
+        const ScoreRule& rule = g_match.rule(ev->result);
+        const bool p1Scored = rule.p1Points > rule.p2Points;
+        const bool p2Scored = rule.p2Points > rule.p1Points;
+        const lv_color_t col =
+            p1Scored ? colP1() : (p2Scored ? colP2() : colSubtle());
+
+        // rule.name 形如 "P1 Burst"；直接顯示即可，設定頁不允許改名。
+        lv_obj_t* t = makeLabel(s, rule.name, &lv_font_montserrat_28, col, 0, -80);
+        lv_obj_set_width(t, 260);
+        lv_label_set_long_mode(t, LV_LABEL_LONG_DOT);
+        lv_obj_align(t, LV_ALIGN_CENTER, 0, -80);
+
+        const int pts = p1Scored ? rule.p1Points : rule.p2Points;
+        if (pts > 0) {
+            std::snprintf(buf, sizeof(buf), "+%d", pts);
+        } else {
+            std::snprintf(buf, sizeof(buf), "NO POINTS");
+        }
+        makeLabel(s, buf, &lv_font_montserrat_36, colAccent(), 0, -35);
+    }
+
+    std::snprintf(buf, sizeof(buf), "%d : %d", g_match.scoreP1(),
+                  g_match.scoreP2());
+    makeLabel(s, buf, &lv_font_montserrat_48, colText(), 0, 25);
+
+    makeButton(s, "UNDO", -78, 100, 72, 48, colMuted(), onUndo, nullptr,
+               &lv_font_montserrat_14);
+    makeButton(s, "NEXT", 0, 100, 72, 48, colP2(), onNext, nullptr,
+               &lv_font_montserrat_14);
+    makeButton(s, "END", 78, 100, 72, 48, colDanger(), onEnd, nullptr,
+               &lv_font_montserrat_14);
+
+    loadScreen(s);
+}
+
+}  // namespace ui
+}  // namespace bey

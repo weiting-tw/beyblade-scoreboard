@@ -1,0 +1,10 @@
+# 16MB Flash 分割表
+# nvs      : Preferences（設定 + 最近 20 場歷史）
+# app0     : 韌體 4MB（LVGL + 大字體足夠，留成長空間）
+# littlefs : 預留給 Phase 5 音效素材（WAV/MP3）
+#
+# Name,     Type, SubType,  Offset,   Size,     Flags
+nvs,        data, nvs,      0x9000,   0x5000,
+otadata,    data, ota,      0xe000,   0x2000,
+app0,       app,  factory,  0x10000,  0x400000,
+littlefs,   data, spiffs,   0x410000, 0xBF0000,

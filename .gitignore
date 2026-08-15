@@ -1,0 +1,28 @@
+# 官方參考 repo（389MB，含二進位韌體與原理圖 PDF），不進版控
+reference/
+
+# ESP-IDF
+build/
+sdkconfig
+sdkconfig.old
+managed_components/
+dependencies.lock
+
+# PlatformIO
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Arduino IDE
+*.bin
+*.elf
+*.map
+
+# 編輯器 / OS
+.vscode/
+.idea/
+.DS_Store
+*.swp
+
+# Python venv（PlatformIO CLI）
+.venv/

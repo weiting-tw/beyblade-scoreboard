@@ -1,0 +1,91 @@
+// 歷史紀錄（規格第 8 節：最近 20 場）
+#include <cstdio>
+
+#include "../app/app.h"
+#include "ui.h"
+#include "ui_theme.h"
+
+namespace bey {
+namespace ui {
+namespace {
+
+void onBack(lv_event_t*) { showHome(); }
+
+void makeRecordRow(lv_obj_t* parent, const MatchRecord& rec) {
+    lv_obj_t* row = lv_obj_create(parent);
+    lv_obj_set_size(row, 206, 44);
+    lv_obj_set_style_bg_color(row, colMuted(), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(row, LV_OPA_50, LV_PART_MAIN);
+    lv_obj_set_style_border_width(row, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(row, 10, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(row, 4, LV_PART_MAIN);
+    lv_obj_clear_flag(row, LV_OBJ_FLAG_SCROLLABLE);
+
+    const auto w = static_cast<Winner>(rec.winner);
+    const lv_color_t col =
+        (w == Winner::P1) ? colP1() : ((w == Winner::P2) ? colP2() : colSubtle());
+
+    // 左側色條標示誰贏。
+    lv_obj_t* bar = lv_obj_create(row);
+    lv_obj_set_size(bar, 5, 28);
+    lv_obj_align(bar, LV_ALIGN_LEFT_MID, 0, 0);
+    lv_obj_set_style_bg_color(bar, col, LV_PART_MAIN);
+    lv_obj_set_style_border_width(bar, 0, LV_PART_MAIN);
+    lv_obj_set_style_radius(bar, 3, LV_PART_MAIN);
+
+    char buf[64];
+    std::snprintf(buf, sizeof(buf), "%s  %u:%u  %s", rec.p1Name,
+                  static_cast<unsigned>(rec.score1),
+                  static_cast<unsigned>(rec.score2), rec.p2Name);
+    lv_obj_t* l = lv_label_create(row);
+    lv_label_set_text(l, buf);
+    lv_obj_set_style_text_font(l, &lv_font_montserrat_14, LV_PART_MAIN);
+    lv_obj_set_style_text_color(l, colText(), LV_PART_MAIN);
+    lv_obj_set_width(l, 178);
+    lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
+    lv_obj_align(l, LV_ALIGN_LEFT_MID, 12, -7);
+
+    std::snprintf(buf, sizeof(buf), "%u rounds", static_cast<unsigned>(rec.rounds));
+    lv_obj_t* sub = lv_label_create(row);
+    lv_label_set_text(sub, buf);
+    lv_obj_set_style_text_font(sub, &lv_font_montserrat_14, LV_PART_MAIN);
+    lv_obj_set_style_text_color(sub, colSubtle(), LV_PART_MAIN);
+    lv_obj_align(sub, LV_ALIGN_LEFT_MID, 12, 10);
+}
+
+}  // namespace
+
+void showHistory() {
+    lv_obj_t* scr = makeScreen();
+    makeLabel(scr, "HISTORY", &lv_font_montserrat_20, colAccent(), 0, -145);
+
+    const int n = g_store.historyCount();
+    if (n == 0) {
+        makeLabel(scr, "NO MATCHES YET", &lv_font_montserrat_20, colSubtle(), 0, 0);
+    } else {
+        lv_obj_t* cont = lv_obj_create(scr);
+        lv_obj_set_size(cont, 230, 210);
+        lv_obj_align(cont, LV_ALIGN_CENTER, 0, -5);
+        lv_obj_set_style_bg_opa(cont, LV_OPA_TRANSP, LV_PART_MAIN);
+        lv_obj_set_style_border_width(cont, 0, LV_PART_MAIN);
+        lv_obj_set_style_pad_all(cont, 2, LV_PART_MAIN);
+        lv_obj_set_style_pad_row(cont, 6, LV_PART_MAIN);
+        lv_obj_set_flex_flow(cont, LV_FLEX_FLOW_COLUMN);
+        lv_obj_set_flex_align(cont, LV_FLEX_ALIGN_START, LV_FLEX_ALIGN_CENTER,
+                              LV_FLEX_ALIGN_CENTER);
+        lv_obj_set_scroll_dir(cont, LV_DIR_VER);
+        lv_obj_set_scrollbar_mode(cont, LV_SCROLLBAR_MODE_AUTO);
+
+        for (int i = 0; i < n; ++i) {
+            makeRecordRow(cont, g_store.history(i));
+        }
+    }
+
+    makeButton(scr, "BACK", 0, 128, 110, 44, colMuted(), onBack, nullptr,
+               &lv_font_montserrat_14);
+
+    loadScreen(scr);
+}
+
+}  // namespace ui
+}  // namespace bey

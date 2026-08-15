@@ -1,0 +1,342 @@
+# Beyblade X 戰鬥計分器
+
+Waveshare **ESP32-S3-Touch-LCD-1.85B**（1.85吋 360×360 圓形觸控螢幕）上的陀螺對戰計分器。
+
+兩位玩家、可設定賽制、三種勝利類型（普通／爆裂／Xtreme Finish）、倒數動畫、撤銷、設定與歷史紀錄持久化。
+
+需求規格見 [`docs/SPEC.md`](docs/SPEC.md)，實作偏離與已知風險見 [`docs/DECISIONS.md`](docs/DECISIONS.md)。
+
+---
+
+## 1. 專案目錄結構
+
+```
+beyblade-scoreboard/
+├── platformio.ini            平台設定（pioarduino + Arduino core 3.2.0）
+├── partitions.csv            16MB flash 分割表
+├── include/
+│   └── lv_conf.h             LVGL 設定（官方版本 + 大字體、關掉 demo）
+├── lib/
+│   └── match/                計分核心：純 C++、零 Arduino 依賴、可主機端測試
+│       ├── include/match_core.h
+│       └── src/match_core.cpp
+├── src/
+│   ├── main.cpp              初始化與主迴圈
+│   ├── bsp/                  官方驅動，原樣複製自 Waveshare repo
+│   │   ├── Display_ST77916.*  esp_lcd_st77916.*
+│   │   ├── Touch_CST816.*     I2C_Driver.*
+│   │   └── LVGL_Driver.*
+│   ├── app/
+│   │   ├── app.*             全域比賽狀態、歷史寫入
+│   │   ├── settings_store.*  NVS 持久化
+│   │   └── feedback.*        音效／震動介面（Phase 5 前為 no-op）
+│   └── ui/
+│       ├── ui.h  ui_theme.*  圓形螢幕版面基礎
+│       └── screen_*.cpp      九個畫面
+├── test/
+│   └── test_match_core/      23 個計分核心單元測試
+├── docs/
+│   ├── SPEC.md               需求規格
+│   └── DECISIONS.md          實作決策與規格偏離
+└── reference/                官方 repo（gitignored，389MB）
+```
+
+**分層原則**：`lib/match` 不知道 LVGL 或 Arduino 的存在，`src/ui` 不直接碰 NVS。
+計分規則的正確性完全由主機端測試保證，不需要板子。
+
+---
+
+## 2. 函式庫與版本
+
+| 項目 | 版本 | 來源 |
+| --- | --- | --- |
+| PlatformIO 平台 | `pioarduino 54.03.20` | ESP-IDF 5.4 + Arduino core 3.2.0 |
+| Arduino ESP32 core | 3.2.0 | 與官方 `Examples/Arduino-V3.2.0` 一致 |
+| LVGL | 8.4.0 | PlatformIO registry（與官方隨附版本相同） |
+| ST77916 / CST816 驅動 | — | 官方 repo `Examples/Arduino-V3.2.0/examples/01_lvgl_demo`，原樣複製 |
+| Unity（測試） | 2.6.1 | 僅 native 環境 |
+
+> PlatformIO **官方**的 `espressif32` 平台仍停在 Arduino core 2.0.x，無法建置官方範例，
+> 因此改用 [pioarduino](https://github.com/pioarduino/platform-espressif32) fork。
+
+---
+
+## 3. 安裝與燒錄步驟
+
+### 3.1 安裝 PlatformIO CLI
+
+專案內已建好隔離環境（不影響系統 Python）：
+
+```bash
+cd beyblade-scoreboard
+python3 -m venv .venv
+.venv/bin/pip install platformio
+```
+
+### 3.2 跑單元測試（不需要板子）
+
+```bash
+.venv/bin/pio test -e native
+```
+
+### 3.3 編譯韌體
+
+```bash
+.venv/bin/pio run -e waveshare_s3_lcd185b
+```
+
+首次執行會下載約 1–2GB 的 ESP32 工具鏈。
+
+### 3.4 燒錄
+
+用 USB-C 接上板子，然後：
+
+```bash
+.venv/bin/pio run -e waveshare_s3_lcd185b -t upload
+.venv/bin/pio device monitor
+```
+
+**進不了燒錄模式時**：按住 `BOOT` → 按一下 `RESET` → 放開 `BOOT`，再重跑 upload。
+
+### 3.5 關鍵板子設定
+
+這幾項來自官方 ESP-IDF 範例的 `sdkconfig.defaults`，**設錯會開不了機**：
+
+| 設定 | 值 | 來源 |
+| --- | --- | --- |
+| Flash | 16MB, QIO | `CONFIG_ESPTOOLPY_FLASHMODE_QIO` / `FLASHSIZE_16MB` |
+| PSRAM | **Octal (OPI)**, 80MHz | `CONFIG_SPIRAM_MODE_OCT` / `SPIRAM_SPEED_80M` |
+| CPU | 240MHz | `CONFIG_ESP_DEFAULT_CPU_FREQ_MHZ_240` |
+
+在 `platformio.ini` 對應為 `board_build.arduino.memory_type = qio_opi`。
+用 Arduino IDE 的話對應 **PSRAM: "OPI PSRAM"**、**Flash Mode: "QIO 80MHz"**、**Flash Size: "16MB"**。
+
+---
+
+## 4. 觸控座標校正方式
+
+官方 `Lvgl_Touchpad_Read()`（`src/bsp/LVGL_Driver.cpp`）直接把 CST816S 回報的座標餵給 LVGL，
+沒有任何旋轉或鏡射。第一次燒錄請先驗證方向。
+
+**檢查方法**：把 `LVGL_Driver.cpp` 裡這行的註解拿掉，開 serial monitor 後點螢幕四邊：
+
+```cpp
+printf("LVGL : X=%u Y=%u points=%d\r\n", touch_data.x, touch_data.y, touch_data.points);
+```
+
+預期：左上角約 `(0,0)`，右下角約 `(359,359)`。
+
+**症狀與修法**（改在 `Lvgl_Touchpad_Read()` 內）：
+
+| 症狀 | 修正 |
+| --- | --- |
+| 左右相反 | `data->point.x = 359 - touch_data.x;` |
+| 上下相反 | `data->point.y = 359 - touch_data.y;` |
+| 旋轉 90°（點上方反應在右方） | `data->point.x = touch_data.y; data->point.y = 359 - touch_data.x;` |
+
+**幽靈觸控**（規格第 9 節）：若靜置時 `points` 偶發非 0 造成誤加分，
+在 `Lvgl_Touchpad_Read()` 加上座標合理性檢查即可 —— 丟棄 `x` 或 `y` 超過 359 的回報。
+本專案在應用層另有一道防線：加分一律要經過勝利類型選單或長按，單純點一下不會改變比分。
+
+---
+
+## 5. UI 操作說明
+
+```
+首頁 ── START ──→ 賽制選擇 ── NEXT ──→ 比賽準備 ── START ──→ 倒數 3-2-1-GO ──→ 主計分
+  │                                        │                                      │
+  ├─ QUICK ───────沿用上次賽制─────────────┘                    ┌── 未達標 ──→ 局結果 ─┤
+  ├─ SETTINGS ──→ 設定                                          └── 已達標 ──→ 比賽完成
+  └─ HISTORY ───→ 歷史紀錄
+```
+
+### 主計分畫面
+
+| 操作 | 效果 |
+| --- | --- |
+| 點 `P1 WIN` / `P2 WIN` | 開啟勝利類型選單（NORMAL +1 / BURST +2 / XTREME +3 / CANCEL） |
+| **長按**玩家分數區域 | 直接套用該玩家的「普通勝利」，跳過選單 |
+| 點 `UNDO` | 撤銷上一筆計分（無可撤銷時按鈕呈灰色停用） |
+| 點 `RESET` | 彈出 `RESET MATCH?` 二次確認後歸零 |
+
+頂端顯示 `R2   TO 3` = 目前第 2 局、3 分制。
+
+### 局結果畫面
+
+`UNDO`（剛才按錯就用這顆）／ `NEXT`（進下一局）／ `END`（提前結束，二次確認）。
+
+### 撤銷
+
+保存最近 **8** 筆計分（規格要求至少 5）。撤銷會一併還原分數、局數與比賽結束狀態 ——
+Xtreme Finish 誤按導致比賽提前結束時，一次撤銷就能回到比賽中。
+
+---
+
+## 6. 賽制與點數設定方式
+
+### 賽制（目標分數）
+
+**賽制選擇頁**：`1` / `3` / `4` / `5` 捷徑按鈕，或用 `−` `+` 微調（範圍 1–20）。
+按 `NEXT` 時寫入 NVS，「快速對戰」下次就會沿用。
+
+### 勝利點數
+
+**設定頁**的 `NORMAL` / `BURST` / `XTREME` 三列，各自 0–9 分。
+預設 1 / 2 / 3。設定頁的調整會同步套用到 P1 與 P2（見 `docs/DECISIONS.md` D6）。
+
+點數不是寫死的 —— 資料結構是 `ScoreRule { name, p1Points, p2Points, countsAsRound }`，
+`RuleSet` 另外還定義了規格第 5 節要求預留的兩種結果：
+
+| 結果 | P1 | P2 | 計入局數 |
+| --- | --- | --- | --- |
+| Double Out（雙方同時出界） | 0 | 0 | 是 |
+| No Contest（無效局） | 0 | 0 | **否** |
+
+這兩種目前沒有對應的 UI 按鈕（規格第 5 節只要求「預留資料模型」），
+核心已完整支援並有測試涵蓋。要加按鈕只需在勝利類型選單多兩個項目。
+
+---
+
+## 7. 儲存資料格式
+
+全部存在 NVS（Arduino `Preferences`），namespace `bey`。
+
+| Key | 型別 | 內容 |
+| --- | --- | --- |
+| `cfg` | blob | `AppSettings`：magic + MatchConfig + RuleSet + 亮度 + 休眠秒數 + 震動開關 |
+| `hist` | blob | `MatchRecord[n]`，index 0 為最新 |
+| `histN` | int | 歷史筆數（0–20） |
+
+```cpp
+struct MatchRecord {          // 52 bytes
+    char     p1Name[20];
+    char     p2Name[20];
+    uint8_t  score1, score2;
+    uint8_t  rounds;
+    uint8_t  winner;          // 0=未定 1=P1 2=P2 3=平手
+    uint32_t timestamp;       // RTC epoch 秒；未接 RTC 時為 0
+};
+```
+
+`AppSettings::magic`（`0x42455901`）用於版本識別。改動 struct 版面時務必把 magic 加一 ——
+不改的話會把舊版位元組當成新版解讀，讀到亂數設定。magic 不符時自動回退預設值。
+
+寫入時機：設定頁按 `BACK` 時一次寫入（避免每按一下 ± 就磨損 flash）；
+比賽結束時寫入歷史（受設定頁 `HISTORY` 開關控制）。
+
+---
+
+## 8. 已知限制
+
+1. **UI 全英文** —— LVGL 內建字體無中文字元。加中文字型的完整做法見 `docs/DECISIONS.md` D1。
+2. **玩家名稱只能從 12 組預設中選** —— 圓形螢幕放不下可用的鍵盤。清單在 `src/ui/screen_names.cpp`。
+3. **歷史紀錄沒有時間戳** —— PCF85063 RTC 尚未接上，`timestamp` 恆為 0。
+4. **沒有自動休眠** —— 設定欄位已保留但屬 Phase 5。
+5. **沒有音效與震動** —— `src/app/feedback.cpp` 是 no-op，介面已固定。
+6. **沒有電池電量顯示** —— BQ27220 電量計屬 Phase 5，官方有 `02_lvgl_BQ27220` 範例可參考。
+7. **勝利類型必須手動選擇** —— 不自動偵測爆裂／出界／Xtreme Finish，那需要競技場端的額外感測器。
+8. **尚未在實機驗證** —— 見下節。
+
+### 尚未在硬體上驗證的項目
+
+第一版所有程式碼都只通過編譯與主機端單元測試，**沒有在實體板子上跑過**。
+`docs/DECISIONS.md` 的「已知風險」一節列出四個讀官方程式碼時發現的疑點
+（`full_refresh` 與緩衝區大小不一致、繪圖緩衝區佔用內部 SRAM、`LV_MEM_SIZE` 調整、觸控座標方向），
+第一次燒錄時請優先確認這幾項。
+
+---
+
+## 9. 後續音效整合方式
+
+`src/app/feedback.h` 已定義好介面，呼叫點散佈在倒數與計分流程中：
+
+```cpp
+enum class Sfx { Tick, Go, ScoreNormal, ScoreBurst, ScoreXtreme, Undo, RoundEnd, MatchWin };
+void feedbackPlay(Sfx);
+void feedbackHaptic(uint16_t ms);
+```
+
+第一版是 no-op，且已先檢查 `enableSound` / `enableVibration` 設定。
+**Phase 5 只需要改寫 `feedback.cpp`，其他檔案一行都不用動。**
+
+硬體（規格第 10 節，官方 repo 已含 `es8311` 與 `es7210` 函式庫）：
+
+```
+Codec ES8311 / MIC ES7210 / 喇叭致能 GPIO9
+I2S: MCLK 2, BCLK 48, LRCK 38, DOUT 47, DIN 39
+```
+
+素材放 `littlefs` 分割區（`partitions.csv` 已預留 12MB）。
+官方 Arduino 範例 `03_audio_out_no_tf` 與 `05_audio_out_tf` 是可直接參考的起點。
+
+規劃音效：`Beyblade!`、`3、2、1、Let it Rip!`、得分提示音、勝利音、Xtreme Finish 音效。
+
+> 規格第 10 節明訂「不得因音訊功能影響第一版計分器穩定性」——
+> 這是把音訊做成 no-op 介面而非直接整合的原因。
+
+---
+
+## 10. 3D 外殼所需實測尺寸
+
+第一版不設計完整外殼（規格第 11 節）。以下是設計前**必須拿游標卡尺量**的項目 ——
+官方 repo 只提供 `hardware/ESP32-S3-Touch-LCD-1.85B Rev1.1.pdf` 原理圖，**沒有機構圖**，
+所有尺寸都得自己量。
+
+### 必量清單
+
+**PCB 本體**
+- [ ] PCB 外形長 × 寬 × 厚
+- [ ] 四個角的圓角半徑
+- [ ] 安裝孔：孔徑、孔心到板邊距離、孔距
+- [ ] 板子背面最高元件的高度（決定內框深度）
+
+**螢幕**
+- [ ] 圓形玻璃外徑
+- [ ] 可視區直徑（規格是 1.85吋 / 360×360，實際可視區要量）
+- [ ] 玻璃面到 PCB 正面的高度
+- [ ] 玻璃中心相對 PCB 中心的偏移量（通常不完全置中）
+- [ ] FPC 排線的出線位置、寬度與最小彎曲半徑
+
+**接口與按鍵開孔位置**（皆量測「孔心到 PCB 邊緣」與「孔心到板底」）
+- [ ] USB-C：外框長 × 寬 × 高
+- [ ] PWR 按鈕
+- [ ] BOOT 按鈕
+- [ ] RESET 按鈕
+- [ ] 麥克風孔
+- [ ] 喇叭出音孔
+- [ ] I²C / UART 排針位置與間距
+
+**選配件**
+- [ ] 電池：長 × 寬 × 厚、接頭型號與線長
+- [ ] 喇叭：直徑 × 厚度、線長
+- [ ] 電池接座在 PCB 上的位置
+
+### 結構建議
+
+- **固定方式**：優先用 PCB 原有安裝孔配 M2 銅柱／自攻螺絲。若孔位不便，改用四個 0.4mm 壓片壓住 PCB 邊緣（避開元件），配合上下殼夾持。
+- **分件**：上蓋（螢幕環）+ 下殼（電池與接口）兩件式，用 M2 螺絲或卡扣接合。磁吸底座做成第三件獨立零件。
+- **螢幕壓框**：圓形螢幕的可視區與玻璃外徑不同，上蓋開孔要對可視區留 0.5mm 餘量，避免遮到邊緣像素。
+- **公差**：FDM 列印建議孔位單邊留 0.2mm、USB-C 開孔單邊留 0.3mm。第一版先印一個「只有開孔與孔位的驗證片」再印完整外殼。
+
+### 建模工具
+
+外殼是機構件，需要精確尺寸與公差，**不適合用生成式 3D（MeshyAI 那類）** ——
+那產出的是有機造型 mesh，孔位對不上。建議用參數化 CAD 原始碼：
+
+- **OpenSCAD**（`brew install openscad`）—— 純文字，可 CLI 匯出 STL
+- **CadQuery / build123d**（Python）—— 支援圓角與去料，可匯出 STEP 方便後續修改
+
+量完尺寸後把數據交給我，我可以直接產出參數化原始碼；你在本機 render 後回報哪裡不合再迭代。
+
+---
+
+## 11. 開發階段進度
+
+| Phase | 內容 | 狀態 |
+| --- | --- | --- |
+| 1 | 確認硬體：LCD、觸控、旋轉方向、360×360 座標 | **待實機驗證** |
+| 2 | 基本計分器：P1/P2、+1、重設、目標分數判定、勝者畫面 | 完成（23 項單元測試） |
+| 3 | 勝利類型：普通／爆裂／Xtreme、可設定點數、局數紀錄 | 完成（含測試） |
+| 4 | 完整 UX：倒數、撤銷、玩家名稱、賽制設定、儲存、歷史 | 完成（待實機驗證） |
+| 5 | 音效、震動、IMU、電池、自動休眠 | 介面已預留，未實作 |
+| 6 | 3D 列印外殼 | 待實測尺寸（見第 10 節） |
