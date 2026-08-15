@@ -1,0 +1,10 @@
+; 複製成 platformio_local.ini 再改成自己的埠。這個檔案不進版控。
+;
+; 埠名用 `pio device list` 查。開發機上若同時接著別片 ESP32，一定要指定 ——
+; 不指定的話 PlatformIO 可能燒到錯的板子。
+; Waveshare ESP32-S3-Touch-LCD-1.85B 的特徵是 16MB 外部 flash + 8MB PSRAM。
+;
+; 所有 env 都 extends 這個主環境，所以設一次就夠。
+[env:waveshare_s3_lcd185b]
+upload_port = /dev/cu.usbmodem21101
+monitor_port = /dev/cu.usbmodem21101

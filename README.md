@@ -112,8 +112,17 @@ python3 -m venv .venv
 
 **進不了燒錄模式時**：按住 `BOOT` → 按一下 `RESET` → 放開 `BOOT`，再重跑 upload。
 
-**埠已寫死在 `platformio.ini`**（`/dev/cu.usbmodem21101`）。開發機上同時接著另一片
-ESP32-S3（PICO-1，8MB 內嵌 flash），不指定埠會有燒錯板子的風險。
+**燒錄埠要自己設**。埠名每台機器都不一樣，所以不放在版控裡：
+
+```bash
+cp platformio_local.ini.example platformio_local.ini
+# 改成 pio device list 查到的埠
+```
+
+檔案不存在時 PlatformIO 會略過，編譯照樣能過，只有燒錄需要它。
+
+**為什麼不讓它自動偵測**：開發機上若同時接著別片 ESP32，PlatformIO 可能燒到錯的
+板子 —— 這在本專案實際發生過。1.85B 的特徵是 16MB 外部 flash + 8MB PSRAM。
 1.85B 的辨識特徵是 **16MB 外部 flash**，用以下指令確認：
 
 ```bash

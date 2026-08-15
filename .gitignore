@@ -37,3 +37,9 @@ cad/out/
 
 # Meshy 產的概念圖，只是設計參考，不是可列印模型
 cad/concepts/
+
+# 本機專屬的 PlatformIO 設定（燒錄埠等）。範本是 platformio_local.ini.example。
+platformio_local.ini
+
+# AI 工具的 skill 設定，與韌體無關
+.agents/
