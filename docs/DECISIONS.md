@@ -131,7 +131,10 @@ python3 tools/gen_fonts.py --list   # 只列出收錄的字與出處
 
 **實作**：`MatchRecord::timestamp` 欄位存在，但 `nowEpoch()` 回傳 0。
 
-**原因**：板上的 PCF85063 RTC（I²C 0x51）在第一版沒有接。欄位先留著，接上 RTC 後只要改 `src/app/app.cpp` 的 `nowEpoch()` 一個函式，其餘程式與儲存格式都不用動。
+**原因**：第一版沒有實作 RTC 讀取。欄位先留著，只要改 `src/app/app.cpp` 的 `nowEpoch()` 一個函式，其餘程式與儲存格式都不用動。
+
+**已確認可行**：`pio run -e audio_probe` 的 I²C 掃描顯示 PCF85063 **確實在 0x51 上回應**，
+所以這不是硬體限制，純粹是還沒寫。官方 Arduino 範例 `08_I2C_pcf85063` 可直接參考。
 
 ---
 

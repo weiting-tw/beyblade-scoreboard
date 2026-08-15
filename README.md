@@ -246,7 +246,7 @@ struct MatchRecord {          // 52 bytes
 ## 8. 已知限制
 
 1. **新增中文字串後必須重跑 `tools/gen_fonts.py`** —— 嵌入的是 81 字的子集字型，
-   沒收錄的字會在螢幕上變成空白方塊，而且**編譯不會報錯**。見下方第 12 節。
+   沒收錄的字會在螢幕上變成空白方塊，而且**編譯不會報錯**。見下方第 13 節。
 2. **玩家名稱只能從 12 組預設中選** —— 圓形螢幕放不下可用的鍵盤。清單在 `src/ui/screen_names.cpp`。
 3. **歷史紀錄沒有時間戳** —— PCF85063 RTC 尚未接上，`timestamp` 恆為 0。
 4. **沒有自動休眠** —— 設定欄位已保留但屬 Phase 5。
@@ -362,7 +362,57 @@ I2S: MCLK 2, BCLK 48, LRCK 38, DOUT 47, DIN 39
 
 ---
 
-## 12. 中文字型：新增字串後必須重新產生
+## 12. 硬體實測結果
+
+以下是實際燒錄後從板子上量到的，不是規格書抄來的。
+
+### 開機自檢（正式韌體）
+
+```
+The SPI initialization succeeded.
+Install LCD driver of st77916
+Vendor-specific initialization for case 2.
+TouchPad_Version:0x00  ChipID:0xb5  ProjID:0x71  FwVersion:0x04
+[bey] ready, heap=217348 psram=8384444
+```
+
+- **PSRAM 8,384,444 bytes 可用** —— 證實 `board_build.arduino.memory_type = qio_opi` 設定正確
+- ST77916 LCD 驅動安裝成功
+- CST816 觸控在 I²C 上回應（ChipID `0xB5`）
+- 應用層 setup 跑完，無 crash
+
+### I²C 裝置清單（`pio run -e audio_probe`）
+
+| 位址 | 裝置 | 用途 |
+| --- | --- | --- |
+| `0x15` | CST816S | 觸控 |
+| `0x18` | **ES8311** | 喇叭 codec |
+| `0x40` | **ES7210** | 麥克風 ADC |
+| `0x51` | PCF85063 | RTC（歷史紀錄時間戳） |
+| `0x55` | BQ27220 | 電量計 |
+| `0x6B` | QMI8658 | IMU |
+| `0x7E` | 未知 | 尚未查明 |
+
+七個裝置全部在線。這代表：
+
+- **離線語音控制可行** —— ES8311 + ES7210 都在，麥克風實測有訊號
+  （環境噪音 peak 150–400，拍手會跳到數千）
+- **歷史紀錄時間戳可做** —— RTC 存在，只差 `nowEpoch()` 的實作
+- **電池電量、IMU 搖晃操作可做** —— 都屬 Phase 5
+
+### 診斷韌體
+
+```bash
+.venv/bin/pio run -e audio_probe -t upload
+.venv/bin/pio device monitor
+```
+
+掃 I²C、印麥克風即時音量條、每 4 秒播一次 1kHz 嗶聲。
+測完記得燒回正式韌體：`.venv/bin/pio run -t upload`。
+
+---
+
+## 13. 中文字型：新增字串後必須重新產生
 
 UI 是中文的，但嵌入的**不是全字集** —— Noto Sans CJK 全字集要 1–2MB，
 這個專案只用到 81 個漢字。子集由 `tools/gen_fonts.py` 從原始碼自動掃描產生。
