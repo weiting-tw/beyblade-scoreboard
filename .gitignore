@@ -26,3 +26,8 @@ dependencies.lock
 
 # Python venv（PlatformIO CLI）
 .venv/
+
+# lv_font_conv 的 Node 相依（產生的字型 .c 本身有進版控）
+tools/node_modules/
+tools/package-lock.json
+tools/package.json

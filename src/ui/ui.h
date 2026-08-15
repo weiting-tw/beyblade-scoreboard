@@ -5,6 +5,7 @@
 #pragma once
 
 #include "match_core.h"
+#include "ui_theme.h"  // Nav
 
 namespace bey {
 namespace ui {
@@ -16,7 +17,11 @@ void showFormat();    // 頁面二：賽制選擇
 void showReady();     // 頁面三：比賽準備
 void showNames();     // 玩家名稱選擇（自頁面三進入）
 void showCountdown();  // 頁面四：倒數 3-2-1-GO
-void showScore();     // 頁面五：主計分
+
+// 頁面五：主計分。
+// 預設 Replace —— 撤銷／重設會重畫同一頁，那時不該有轉場位移。
+// 從倒數進場請傳 Nav::Fade，從局結果按「下一局」請傳 Nav::Forward。
+void showScore(Nav nav = Nav::Replace);
 void showRound();     // 頁面六：局結果
 void showComplete();  // 頁面七：比賽完成
 void showSettings();  // 頁面八：設定

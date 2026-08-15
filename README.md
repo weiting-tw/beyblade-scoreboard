@@ -4,7 +4,8 @@ Waveshare **ESP32-S3-Touch-LCD-1.85B**（1.85吋 360×360 圓形觸控螢幕）�
 
 兩位玩家、可設定賽制、三種勝利類型（普通／爆裂／Xtreme Finish）、倒數動畫、撤銷、設定與歷史紀錄持久化。
 
-需求規格見 [`docs/SPEC.md`](docs/SPEC.md)，實作偏離與已知風險見 [`docs/DECISIONS.md`](docs/DECISIONS.md)。
+需求規格見 [`docs/SPEC.md`](docs/SPEC.md)，實作偏離與已知風險見 [`docs/DECISIONS.md`](docs/DECISIONS.md)，
+轉場與獲勝動畫的設計見 [`docs/MOTION.md`](docs/MOTION.md)。
 
 ---
 
@@ -31,13 +32,18 @@ beyblade-scoreboard/
 │   │   ├── settings_store.*  NVS 持久化
 │   │   └── feedback.*        音效／震動介面（Phase 5 前為 no-op）
 │   └── ui/
-│       ├── ui.h  ui_theme.*  圓形螢幕版面基礎
+│       ├── ui.h  ui_theme.*  圓形螢幕版面基礎、轉場與動畫工具
+│       ├── fonts.h           中文子集字型宣告
+│       ├── fonts/            font_tc_16/22/30.c（由 gen_fonts.py 產生）
 │       └── screen_*.cpp      九個畫面
+├── tools/
+│   └── gen_fonts.py          從原始碼字串常值產生中文子集字型
 ├── test/
 │   └── test_match_core/      23 個計分核心單元測試
 ├── docs/
 │   ├── SPEC.md               需求規格
-│   └── DECISIONS.md          實作決策與規格偏離
+│   ├── DECISIONS.md          實作決策與規格偏離
+│   └── MOTION.md             轉場與獲勝動畫設計
 └── reference/                官方 repo（gitignored，389MB）
 ```
 
@@ -54,6 +60,8 @@ beyblade-scoreboard/
 | Arduino ESP32 core | 3.2.0 | 與官方 `Examples/Arduino-V3.2.0` 一致 |
 | LVGL | 8.4.0 | PlatformIO registry（與官方隨附版本相同） |
 | ST77916 / CST816 驅動 | — | 官方 repo `Examples/Arduino-V3.2.0/examples/01_lvgl_demo`，原樣複製 |
+| Noto Sans CJK TC | — | 中文字型來源（OFL 授權，可嵌入）。只嵌入 81 字的子集 |
+| lv_font_conv | latest | 字型子集產生器（Node，僅開發時需要） |
 | Unity（測試） | 2.6.1 | 僅 native 環境 |
 
 > PlatformIO **官方**的 `espressif32` 平台仍停在 Arduino core 2.0.x，無法建置官方範例，
@@ -97,6 +105,15 @@ python3 -m venv .venv
 ```
 
 **進不了燒錄模式時**：按住 `BOOT` → 按一下 `RESET` → 放開 `BOOT`，再重跑 upload。
+
+**埠已寫死在 `platformio.ini`**（`/dev/cu.usbmodem21101`）。開發機上同時接著另一片
+ESP32-S3（PICO-1，8MB 內嵌 flash），不指定埠會有燒錯板子的風險。
+1.85B 的辨識特徵是 **16MB 外部 flash**，用以下指令確認：
+
+```bash
+.venv/bin/pio device list                        # 列出候選埠
+.venv/bin/esptool.py --port <埠> flash_id        # 看 flash 大小，應為 16MB
+```
 
 ### 3.5 關鍵板子設定
 
@@ -228,7 +245,8 @@ struct MatchRecord {          // 52 bytes
 
 ## 8. 已知限制
 
-1. **UI 全英文** —— LVGL 內建字體無中文字元。加中文字型的完整做法見 `docs/DECISIONS.md` D1。
+1. **新增中文字串後必須重跑 `tools/gen_fonts.py`** —— 嵌入的是 81 字的子集字型，
+   沒收錄的字會在螢幕上變成空白方塊，而且**編譯不會報錯**。見下方第 12 節。
 2. **玩家名稱只能從 12 組預設中選** —— 圓形螢幕放不下可用的鍵盤。清單在 `src/ui/screen_names.cpp`。
 3. **歷史紀錄沒有時間戳** —— PCF85063 RTC 尚未接上，`timestamp` 恆為 0。
 4. **沒有自動休眠** —— 設定欄位已保留但屬 Phase 5。
@@ -340,3 +358,48 @@ I2S: MCLK 2, BCLK 48, LRCK 38, DOUT 47, DIN 39
 | 4 | 完整 UX：倒數、撤銷、玩家名稱、賽制設定、儲存、歷史 | 完成（待實機驗證） |
 | 5 | 音效、震動、IMU、電池、自動休眠 | 介面已預留，未實作 |
 | 6 | 3D 列印外殼 | 待實測尺寸（見第 10 節） |
+| — | 中文 UI、轉場與獲勝動畫（規格外追加） | 完成（待實機驗證） |
+
+---
+
+## 12. 中文字型：新增字串後必須重新產生
+
+UI 是中文的，但嵌入的**不是全字集** —— Noto Sans CJK 全字集要 1–2MB，
+這個專案只用到 81 個漢字。子集由 `tools/gen_fonts.py` 從原始碼自動掃描產生。
+
+### 何時要重跑
+
+**任何時候你在程式裡新增或修改了中文字串。** 沒收錄的字會在螢幕上顯示成
+空白方塊，而且編譯階段完全不會報錯 —— 只有燒進板子才看得出來。
+
+```bash
+# 一次性設定（只需做一次）
+cd tools && npm install lv_font_conv && cd ..
+
+# 每次改動中文字串後
+python3 tools/gen_fonts.py
+
+# 只想看會收錄哪些字、各自來自哪個檔案
+python3 tools/gen_fonts.py --list
+```
+
+### 腳本做了什麼
+
+從 `src/ui`、`src/app`、`lib/match` 掃描 **字串常值裡** 的中日韓字元，
+產生三個字級的字型到 `src/ui/fonts/`。
+
+兩個關鍵細節：
+
+- **不掃註解**。本專案註解全是中文，一併收進去會讓子集膨脹好幾倍。
+- **要掃 `lib/match`**。規則名稱（如「P1 爆裂勝」）定義在計分核心而非 UI 層。
+
+### 需求
+
+- Node.js（`lv_font_conv` 是 Node 工具）
+- `~/Library/Fonts/NotoSansCJKtc-{Medium,Bold}.otf`
+  （[Noto CJK](https://github.com/notofonts/noto-cjk/releases)，OFL 授權可嵌入）
+
+產生出來的 `.c` 檔**有進版控**，所以一般編譯不需要 Node 或字型檔 ——
+只有要改中文字串時才需要。
+
+字級選用與其他細節見 `docs/DECISIONS.md` D1。

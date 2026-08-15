@@ -15,7 +15,7 @@ namespace bey {
 namespace ui {
 namespace {
 
-void onNext(lv_event_t*) { showScore(); }
+void onNext(lv_event_t*) { showScore(Nav::Forward); }
 
 void onUndo(lv_event_t*) {
     if (g_match.undo()) {
@@ -32,7 +32,7 @@ void doEnd() {
     showComplete();
 }
 
-void onEnd(lv_event_t*) { showConfirmOverlay("END MATCH?", doEnd); }
+void onEnd(lv_event_t*) { showConfirmOverlay("結束比賽？", doEnd); }
 
 }  // namespace
 
@@ -42,9 +42,9 @@ void showRound() {
     const ScoreEvent* ev = g_match.lastEvent();
 
     char buf[48];
-    std::snprintf(buf, sizeof(buf), "ROUND %d",
+    std::snprintf(buf, sizeof(buf), "第 %d 局",
                   ev != nullptr ? ev->roundNumber : g_match.round());
-    makeLabel(s, buf, &lv_font_montserrat_20, colSubtle(), 0, -130);
+    makeLabel(s, buf, &font_tc_22, colSubtle(), 0, -130);
 
     if (ev != nullptr) {
         const ScoreRule& rule = g_match.rule(ev->result);
@@ -53,33 +53,44 @@ void showRound() {
         const lv_color_t col =
             p1Scored ? colP1() : (p2Scored ? colP2() : colSubtle());
 
-        // rule.name 形如 "P1 Burst"；直接顯示即可，設定頁不允許改名。
-        lv_obj_t* t = makeLabel(s, rule.name, &lv_font_montserrat_28, col, 0, -80);
+        // rule.name 形如「P1 爆裂勝」；直接顯示即可，設定頁不允許改名。
+        // Xtreme Finish 是本作最高分的收尾方式，值得一個專屬的金色光環。
+        const bool isXtreme = (ev->result == ResultType::P1Xtreme ||
+                               ev->result == ResultType::P2Xtreme);
+        if (isXtreme) {
+            animRingBurst(s, colAccent(), 1500);
+        }
+
+        lv_obj_t* t = makeLabel(s, rule.name, &font_tc_30, col, 0, -80);
         lv_obj_set_width(t, 260);
         lv_label_set_long_mode(t, LV_LABEL_LONG_DOT);
         lv_obj_align(t, LV_ALIGN_CENTER, 0, -80);
+        animFadeIn(t, 260);
 
         const int pts = p1Scored ? rule.p1Points : rule.p2Points;
         if (pts > 0) {
             std::snprintf(buf, sizeof(buf), "+%d", pts);
         } else {
-            std::snprintf(buf, sizeof(buf), "NO POINTS");
+            std::snprintf(buf, sizeof(buf), "無得分");
         }
-        makeLabel(s, buf, &lv_font_montserrat_36, colAccent(), 0, -35);
+        lv_obj_t* p = makeLabel(s, buf, &font_tc_30, colAccent(), 0, -35);
+        // 得分越高彈得越誇張：+1 幾乎不動，Xtreme 的 +3 明顯放大。
+        animPop(p, static_cast<uint16_t>(pts >= 3 ? 60 : (pts >= 2 ? 120 : 180)),
+                256, 420, 180);
     }
 
     std::snprintf(buf, sizeof(buf), "%d : %d", g_match.scoreP1(),
                   g_match.scoreP2());
     makeLabel(s, buf, &lv_font_montserrat_48, colText(), 0, 25);
 
-    makeButton(s, "UNDO", -78, 100, 72, 48, colMuted(), onUndo, nullptr,
-               &lv_font_montserrat_14);
-    makeButton(s, "NEXT", 0, 100, 72, 48, colP2(), onNext, nullptr,
-               &lv_font_montserrat_14);
-    makeButton(s, "END", 78, 100, 72, 48, colDanger(), onEnd, nullptr,
-               &lv_font_montserrat_14);
+    makeButton(s, "撤銷", -78, 100, 72, 48, colMuted(), onUndo, nullptr,
+               &font_tc_16);
+    makeButton(s, "下一局", 0, 100, 72, 48, colP2(), onNext, nullptr,
+               &font_tc_16);
+    makeButton(s, "結束", 78, 100, 72, 48, colDanger(), onEnd, nullptr,
+               &font_tc_16);
 
-    loadScreen(s);
+    loadScreen(s, Nav::Forward);
 }
 
 }  // namespace ui

@@ -138,7 +138,7 @@ void doClearHistory() {
     g_store.clearHistory();
     showSettings();
 }
-void onClearHistory(lv_event_t*) { showConfirmOverlay("CLEAR HISTORY?", doClearHistory); }
+void onClearHistory(lv_event_t*) { showConfirmOverlay("清除歷史？", doClearHistory); }
 
 void doRestoreDefaults() {
     g_store.restoreDefaults();
@@ -147,7 +147,7 @@ void doRestoreDefaults() {
     showSettings();
 }
 void onRestoreDefaults(lv_event_t*) {
-    showConfirmOverlay("RESTORE DEFAULTS?", doRestoreDefaults);
+    showConfirmOverlay("恢復預設？", doRestoreDefaults);
 }
 
 void onBack(lv_event_t*) {
@@ -173,7 +173,7 @@ lv_obj_t* makeRow(lv_obj_t* parent) {
 lv_obj_t* rowLabel(lv_obj_t* row, const char* text) {
     lv_obj_t* l = lv_label_create(row);
     lv_label_set_text(l, text);
-    lv_obj_set_style_text_font(l, &lv_font_montserrat_14, LV_PART_MAIN);
+    lv_obj_set_style_text_font(l, &font_tc_16, LV_PART_MAIN);
     lv_obj_set_style_text_color(l, colText(), LV_PART_MAIN);
     lv_obj_align(l, LV_ALIGN_LEFT_MID, 0, 0);
     return l;
@@ -191,7 +191,7 @@ lv_obj_t* stepBtn(lv_obj_t* row, const char* text, lv_coord_t xOfs,
     lv_obj_set_style_shadow_width(b, 0, LV_PART_MAIN);
     lv_obj_t* l = lv_label_create(b);
     lv_label_set_text(l, text);
-    lv_obj_set_style_text_font(l, &lv_font_montserrat_14, LV_PART_MAIN);
+    lv_obj_set_style_text_font(l, &font_tc_16, LV_PART_MAIN);
     lv_obj_center(l);
     lv_obj_add_event_cb(b, onStep, LV_EVENT_CLICKED, const_cast<StepAction*>(action));
     return b;
@@ -205,7 +205,7 @@ void makeStepperRow(lv_obj_t* parent, const char* text, Field f, int stepIndex) 
     stepBtn(row, "+", 0, &kSteps[stepIndex + 1]);
 
     lv_obj_t* val = lv_label_create(row);
-    lv_obj_set_style_text_font(val, &lv_font_montserrat_20, LV_PART_MAIN);
+    lv_obj_set_style_text_font(val, &font_tc_22, LV_PART_MAIN);
     lv_obj_set_style_text_color(val, colAccent(), LV_PART_MAIN);
     lv_obj_align(val, LV_ALIGN_RIGHT_MID, -52, 0);
     s_valueLabels[static_cast<int>(f)] = val;
@@ -238,7 +238,7 @@ void makeActionRow(lv_obj_t* parent, const char* text, lv_color_t col,
     lv_obj_set_style_shadow_width(b, 0, LV_PART_MAIN);
     lv_obj_t* l = lv_label_create(b);
     lv_label_set_text(l, text);
-    lv_obj_set_style_text_font(l, &lv_font_montserrat_14, LV_PART_MAIN);
+    lv_obj_set_style_text_font(l, &font_tc_16, LV_PART_MAIN);
     lv_obj_center(l);
     lv_obj_add_event_cb(b, cb, LV_EVENT_CLICKED, nullptr);
 }
@@ -250,7 +250,7 @@ void showSettings() {
 
     lv_obj_t* scr = makeScreen();
     lv_obj_add_event_cb(scr, onScreenDel, LV_EVENT_DELETE, nullptr);
-    makeLabel(scr, "SETTINGS", &lv_font_montserrat_20, colAccent(), 0, -145);
+    makeLabel(scr, "設定", &font_tc_22, colAccent(), 0, -145);
 
     lv_obj_t* cont = lv_obj_create(scr);
     lv_obj_set_size(cont, 230, 210);
@@ -265,23 +265,23 @@ void showSettings() {
     lv_obj_set_scroll_dir(cont, LV_DIR_VER);
     lv_obj_set_scrollbar_mode(cont, LV_SCROLLBAR_MODE_AUTO);
 
-    makeStepperRow(cont, "TARGET", Field::Target, 0);
-    makeStepperRow(cont, "NORMAL", Field::Normal, 2);
-    makeStepperRow(cont, "BURST", Field::Burst, 4);
+    makeStepperRow(cont, "目標分數", Field::Target, 0);
+    makeStepperRow(cont, "普通勝", Field::Normal, 2);
+    makeStepperRow(cont, "爆裂勝", Field::Burst, 4);
     makeStepperRow(cont, "XTREME", Field::Xtreme, 6);
-    makeStepperRow(cont, "BRIGHT", Field::Brightness, 8);
+    makeStepperRow(cont, "亮度", Field::Brightness, 8);
 
-    makeSwitchRow(cont, "SOUND", s.match.enableSound, onToggleSound);
-    makeSwitchRow(cont, "VIBRATE", s.enableVibration, onToggleVibration);
-    makeSwitchRow(cont, "HISTORY", s.match.saveHistory, onToggleHistory);
+    makeSwitchRow(cont, "音效", s.match.enableSound, onToggleSound);
+    makeSwitchRow(cont, "震動", s.enableVibration, onToggleVibration);
+    makeSwitchRow(cont, "保存紀錄", s.match.saveHistory, onToggleHistory);
 
-    makeActionRow(cont, "CLEAR HISTORY", colDanger(), onClearHistory);
-    makeActionRow(cont, "RESTORE DEFAULTS", colDanger(), onRestoreDefaults);
+    makeActionRow(cont, "清除歷史紀錄", colDanger(), onClearHistory);
+    makeActionRow(cont, "恢復預設值", colDanger(), onRestoreDefaults);
 
-    makeButton(scr, "BACK", 0, 128, 110, 44, colMuted(), onBack, nullptr,
-               &lv_font_montserrat_14);
+    makeButton(scr, "返回", 0, 128, 110, 44, colMuted(), onBack, nullptr,
+               &font_tc_16);
 
-    loadScreen(scr);
+    loadScreen(scr, Nav::Forward);
 }
 
 }  // namespace ui

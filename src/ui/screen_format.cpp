@@ -70,11 +70,11 @@ void showFormat() {
 
     lv_obj_t* s = makeScreen();
     lv_obj_add_event_cb(s, onScreenDel, LV_EVENT_DELETE, nullptr);
-    makeLabel(s, "MATCH FORMAT", &lv_font_montserrat_20, colAccent(), 0, -135);
+    makeLabel(s, "賽制", &font_tc_22, colAccent(), 0, -135);
 
     s_targetLabel = makeLabel(s, "3", &lv_font_montserrat_48, colText(), 0, -75);
     refresh();
-    makeLabel(s, "POINTS TO WIN", &lv_font_montserrat_20, colSubtle(), 0, -30);
+    makeLabel(s, "勝利分數", &font_tc_22, colSubtle(), 0, -30);
 
     makeButton(s, "-", -100, -75, 56, 56, colMuted(), onDec, nullptr);
     makeButton(s, "+", 100, -75, 56, 56, colMuted(), onInc, nullptr);
@@ -89,10 +89,10 @@ void showFormat() {
                    reinterpret_cast<void*>(static_cast<intptr_t>(presets[i])));
     }
 
-    makeButton(s, "BACK", -52, 100, 100, 48, colMuted(), onBack, nullptr);
-    makeButton(s, "NEXT", 52, 100, 100, 48, colP2(), onNext, nullptr);
+    makeButton(s, "返回", -52, 100, 100, 48, colMuted(), onBack, nullptr);
+    makeButton(s, "下一步", 52, 100, 100, 48, colP2(), onNext, nullptr);
 
-    loadScreen(s);
+    loadScreen(s, Nav::Forward);
 }
 
 }  // namespace ui

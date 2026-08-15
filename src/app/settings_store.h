@@ -15,7 +15,8 @@ namespace bey {
 constexpr int kMaxHistory = 20;
 
 // blob 版本識別。改動下列 struct 版面時務必 +1，否則會讀到舊版亂數。
-constexpr uint32_t kSettingsMagic = 0x42455901;  // 'BEY' + v1
+// v2：規則名稱改為中文，已存在 NVS 的舊 blob 帶的是英文名，必須作廢重寫。
+constexpr uint32_t kSettingsMagic = 0x42455902;  // 'BEY' + v2
 
 struct AppSettings {
     uint32_t magic;

@@ -23,8 +23,8 @@ void onHistory(lv_event_t*) { showHistory(); }
 void showHome() {
     lv_obj_t* s = makeScreen();
 
-    makeLabel(s, "BEYBLADE X", &lv_font_montserrat_28, colAccent(), 0, -115);
-    makeLabel(s, "BATTLE SCORE", &lv_font_montserrat_20, colSubtle(), 0, -85);
+    makeLabel(s, "BEYBLADE X", &font_tc_30, colAccent(), 0, -115);
+    makeLabel(s, "BATTLE SCORE", &font_tc_22, colSubtle(), 0, -85);
 
     // 2×2 配置。四個按鈕的外角都落在安全圓內：
     // 最遠角 (136, 74) 距圓心 155 < kSafeR(166)。
@@ -32,12 +32,12 @@ void showHome() {
     constexpr lv_coord_t kH = 54;
     constexpr lv_coord_t kDx = 70;
 
-    makeButton(s, "START", -kDx, -15, kW, kH, colP1(), onStart, nullptr);
-    makeButton(s, "QUICK", kDx, -15, kW, kH, colP2(), onQuick, nullptr);
-    makeButton(s, "SETTINGS", -kDx, 47, kW, kH, colMuted(), onSettings, nullptr);
-    makeButton(s, "HISTORY", kDx, 47, kW, kH, colMuted(), onHistory, nullptr);
+    makeButton(s, "開始比賽", -kDx, -15, kW, kH, colP1(), onStart, nullptr);
+    makeButton(s, "快速對戰", kDx, -15, kW, kH, colP2(), onQuick, nullptr);
+    makeButton(s, "設定", -kDx, 47, kW, kH, colMuted(), onSettings, nullptr);
+    makeButton(s, "歷史紀錄", kDx, 47, kW, kH, colMuted(), onHistory, nullptr);
 
-    loadScreen(s);
+    loadScreen(s, Nav::Back);
 }
 
 void init() { showHome(); }

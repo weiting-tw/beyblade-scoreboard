@@ -4,27 +4,54 @@
 
 ---
 
-## D1. UI 文字使用英文，非規格中的中文按鈕
+## D1. 中文 UI 採用自動掃描產生的子集字型
 
 **規格**：第 6 節按鈕寫作 `[開始比賽]`、`[撤銷]`、`[重設]` 等中文。
 
-**實作**：`START`、`UNDO`、`RESET` 等英文。
+**實作**：UI 已全面中文化。字型是從 Noto Sans CJK TC（OFL 授權，可嵌入）產生的**子集**，
+由 `tools/gen_fonts.py` 自動掃描原始碼產生。
 
-**原因**：LVGL 內建的 Montserrat 字體只含 Latin-1，沒有任何中日韓字元。直接餵中文字串會渲染成空白或豆腐方塊。規格自己的標題（`BEYBLADE X`、`BATTLE SCORE`、`ROUND 2`、`MATCH WINNER`）本來就是英文，全英文介面在視覺上也一致。
+**為什麼要自動掃描，而不是手寫字元清單**：
 
-**要改成中文的做法**：
+Noto Sans CJK 全字集約 1–2MB，這個專案實際只用到 81 個漢字。子集是必要的，
+但手動維護清單一定會漏 —— 新增一句中文卻忘了更新清單，那個字就會在螢幕上
+變成空白方塊，而且**編譯完全不會報錯**。所以清單改由程式從原始碼推導。
 
-1. 準備一個含所需字元的 TTF（例如思源黑體 Noto Sans TC）
-2. 用 [lv_font_conv](https://github.com/lvgl/lv_font_conv) 產生**子集**字型，只包含實際用到的數十個漢字：
-   ```
-   lv_font_conv --font NotoSansTC-Bold.ttf --size 24 --bpp 4 \
-     --format lvgl -o src/ui/font_tc_24.c \
-     --symbols "開始比賽快速對戰設定歷史紀錄撤銷重局勝者返回下一結束..."
-   ```
-3. 把產出的 `.c` 放進 `src/ui/`，在 `ui_theme.h` 宣告 `LV_FONT_DECLARE(font_tc_24)`
-4. 把各畫面的 `&lv_font_montserrat_20` 換成 `&font_tc_24`
+腳本有兩個關鍵細節：
 
-**成本**：全字集約 1–2MB flash，子集約 30–80KB。app0 分割區有 4MB，子集完全放得下。
+1. **只掃字串常值，不掃註解**。本專案的註解全是中文，一併收進去會讓子集膨脹好幾倍。
+   tokenizer 用單一 regex 同時匹配「字串」與「註解」並只保留前者，這樣字串裡的
+   `//` 也不會被誤判成註解起點。
+2. **同時掃 `lib/match`**。規則名稱（如「P1 爆裂勝」）定義在計分核心，會顯示在局結果頁。
+   只掃 `src/ui` 會漏掉這些字。
+
+**新增中文字串後必須重跑**：
+
+```bash
+python3 tools/gen_fonts.py          # 重新產生
+python3 tools/gen_fonts.py --list   # 只列出收錄的字與出處
+```
+
+**字級與字重**：
+
+| 字型 | 字級 | 字重 | 用途 |
+| --- | --- | --- | --- |
+| `font_tc_16` | 16px | Medium | 列表、次要說明、窄按鈕 |
+| `font_tc_22` | 22px | Bold | 一般按鈕與標題 |
+| `font_tc_30` | 30px | Bold | 大標題、勝者、確認訊息 |
+
+16px 用 Medium 而非 Bold：16px 的粗體漢字在 4bpp 下筆畫會糊成一團。
+
+**純數字仍用 Montserrat**：比分、倒數數字用 `lv_font_montserrat_36 / 48`。
+數字不需要漢字，Montserrat 的字面也比較適合計分板，還省下兩個大字級的 CJK 子集。
+`lv_font_montserrat_14` 保留是因為它是 `LV_FONT_DEFAULT`（捲軸等內部元件會用到）；
+20 與 28 已在 `lv_conf.h` 關閉。
+
+**未壓縮**：`lv_conf.h` 的 `LV_USE_FONT_COMPRESSED = 0`，因此產生時帶 `--no-compress`。
+壓縮可省約三到五成 flash，但會增加繪製成本；目前 flash 只用了 20.8%，不值得換。
+
+**成本**：三個字級的二進位合計約 99KB。同時關掉 montserrat 20/28 後，
+整體 flash 淨增約 41KB。
 
 ---
 

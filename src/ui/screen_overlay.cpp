@@ -69,9 +69,9 @@ void showWinTypeOverlay(bool forPlayer1) {
     const MatchConfig& cfg = g_match.config();
 
     char title[40];
-    std::snprintf(title, sizeof(title), "%s WINS BY",
+    std::snprintf(title, sizeof(title), "%s 勝利方式",
                   forPlayer1 ? cfg.p1Name : cfg.p2Name);
-    lv_obj_t* t = makeLabel(o, title, &lv_font_montserrat_20, col, 0, -120);
+    lv_obj_t* t = makeLabel(o, title, &font_tc_22, col, 0, -120);
     lv_obj_set_width(t, 240);
     lv_label_set_long_mode(t, LV_LABEL_LONG_DOT);
     lv_obj_align(t, LV_ALIGN_CENTER, 0, -120);
@@ -81,7 +81,7 @@ void showWinTypeOverlay(bool forPlayer1) {
         forPlayer1 ? ResultType::P1Burst : ResultType::P2Burst,
         forPlayer1 ? ResultType::P1Xtreme : ResultType::P2Xtreme,
     };
-    const char* names[3] = {"NORMAL", "BURST", "XTREME"};
+    const char* names[3] = {"普通", "爆裂", "XTREME"};
     const lv_coord_t ys[3] = {-55, 5, 65};
 
     for (int i = 0; i < 3; ++i) {
@@ -94,19 +94,19 @@ void showWinTypeOverlay(bool forPlayer1) {
                    reinterpret_cast<void*>(static_cast<intptr_t>(results[i])));
     }
 
-    makeButton(o, "CANCEL", 0, 125, 120, 48, colMuted(), onCancel, nullptr,
-               &lv_font_montserrat_14);
+    makeButton(o, "取消", 0, 125, 120, 48, colMuted(), onCancel, nullptr,
+               &font_tc_16);
 }
 
 void showConfirmOverlay(const char* message, void (*confirmFn)()) {
     s_onConfirm = confirmFn;
     lv_obj_t* o = openOverlay();
 
-    makeLabel(o, message, &lv_font_montserrat_28, colText(), 0, -40);
+    makeLabel(o, message, &font_tc_30, colText(), 0, -40);
 
-    makeButton(o, "CANCEL", -60, 60, 110, 52, colMuted(), onCancel, nullptr,
-               &lv_font_montserrat_14);
-    makeButton(o, "YES", 60, 60, 110, 52, colDanger(), onConfirm, nullptr);
+    makeButton(o, "取消", -60, 60, 110, 52, colMuted(), onCancel, nullptr,
+               &font_tc_16);
+    makeButton(o, "確定", 60, 60, 110, 52, colDanger(), onConfirm, nullptr);
 }
 
 }  // namespace ui

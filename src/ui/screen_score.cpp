@@ -41,6 +41,11 @@ void applyResultAndAdvance(ResultType r) {
 
 namespace {
 
+// 上一次畫出來的比分。畫面每次都重建，狀態只能留在這裡。
+// -1 代表還沒畫過，此時不做任何強調。
+int s_shownP1 = -1;
+int s_shownP2 = -1;
+
 void onP1Win(lv_event_t*) { showWinTypeOverlay(true); }
 void onP2Win(lv_event_t*) { showWinTypeOverlay(false); }
 
@@ -64,7 +69,7 @@ void doReset() {
 
 void onReset(lv_event_t*) {
     // 規格第 9 節：重設必須二次確認。
-    showConfirmOverlay("RESET MATCH?", doReset);
+    showConfirmOverlay("重設比賽？", doReset);
 }
 
 // 覆蓋在分數上的透明長按區。
@@ -81,31 +86,47 @@ void makeLongPressArea(lv_obj_t* parent, lv_coord_t dx, lv_event_cb_t cb) {
 
 }  // namespace
 
-void showScore() {
+void showScore(Nav nav) {
     const MatchConfig& cfg = g_match.config();
 
     lv_obj_t* s = makeScreen();
 
     char buf[40];
-    std::snprintf(buf, sizeof(buf), "R%d   TO %d", g_match.round(),
+    std::snprintf(buf, sizeof(buf), "第 %d 局    %d 分制", g_match.round(),
                   cfg.targetScore);
-    makeLabel(s, buf, &lv_font_montserrat_20, colSubtle(), 0, -135);
+    makeLabel(s, buf, &font_tc_22, colSubtle(), 0, -135);
 
     // 玩家名稱與分數
-    lv_obj_t* n1 = makeLabel(s, cfg.p1Name, &lv_font_montserrat_14, colP1(), -78, -108);
+    lv_obj_t* n1 = makeLabel(s, cfg.p1Name, &font_tc_16, colP1(), -78, -108);
     lv_obj_set_width(n1, 140);
     lv_label_set_long_mode(n1, LV_LABEL_LONG_DOT);
     lv_obj_align(n1, LV_ALIGN_CENTER, -78, -108);
 
-    lv_obj_t* n2 = makeLabel(s, cfg.p2Name, &lv_font_montserrat_14, colP2(), 78, -108);
+    lv_obj_t* n2 = makeLabel(s, cfg.p2Name, &font_tc_16, colP2(), 78, -108);
     lv_obj_set_width(n2, 140);
     lv_label_set_long_mode(n2, LV_LABEL_LONG_DOT);
     lv_obj_align(n2, LV_ALIGN_CENTER, 78, -108);
 
-    std::snprintf(buf, sizeof(buf), "%d", g_match.scoreP1());
-    makeLabel(s, buf, &lv_font_montserrat_48, colText(), -78, -60);
-    std::snprintf(buf, sizeof(buf), "%d", g_match.scoreP2());
-    makeLabel(s, buf, &lv_font_montserrat_48, colText(), 78, -60);
+    // 只讓「分數有變動」的那一邊彈跳。兩邊都動的話等於沒有指向性，
+    // 使用者反而看不出剛才加到誰身上。
+    const int p1 = g_match.scoreP1();
+    const int p2 = g_match.scoreP2();
+    const bool fresh = (g_match.undoAvailable() == 0);  // 全新一場，不強調
+    const bool pop1 = !fresh && s_shownP1 >= 0 && s_shownP1 != p1;
+    const bool pop2 = !fresh && s_shownP2 >= 0 && s_shownP2 != p2;
+
+    std::snprintf(buf, sizeof(buf), "%d", p1);
+    lv_obj_t* sc1 = makeLabel(s, buf, &lv_font_montserrat_48, colText(), -78, -60);
+    std::snprintf(buf, sizeof(buf), "%d", p2);
+    lv_obj_t* sc2 = makeLabel(s, buf, &lv_font_montserrat_48, colText(), 78, -60);
+    if (pop1) {
+        animPop(sc1, 380, 256, 360);
+    }
+    if (pop2) {
+        animPop(sc2, 380, 256, 360);
+    }
+    s_shownP1 = p1;
+    s_shownP2 = p2;
 
     makeLabel(s, ":", &lv_font_montserrat_36, colMuted(), 0, -60);
 
@@ -113,18 +134,18 @@ void showScore() {
     makeLongPressArea(s, -78, onP1LongPress);
     makeLongPressArea(s, 78, onP2LongPress);
 
-    makeButton(s, "P1 WIN", -74, 25, 140, 56, colP1(), onP1Win, nullptr);
-    makeButton(s, "P2 WIN", 74, 25, 140, 56, colP2(), onP2Win, nullptr);
+    makeButton(s, "P1 勝", -74, 25, 140, 56, colP1(), onP1Win, nullptr);
+    makeButton(s, "P2 勝", 74, 25, 140, 56, colP2(), onP2Win, nullptr);
 
-    lv_obj_t* undo = makeButton(s, "UNDO", -55, 95, 104, 48, colMuted(), onUndo,
-                                nullptr, &lv_font_montserrat_14);
+    lv_obj_t* undo = makeButton(s, "撤銷", -55, 95, 104, 48, colMuted(), onUndo,
+                                nullptr, &font_tc_16);
     if (g_match.undoAvailable() == 0) {
         lv_obj_add_state(undo, LV_STATE_DISABLED);
     }
-    makeButton(s, "RESET", 55, 95, 104, 48, colDanger(), onReset, nullptr,
-               &lv_font_montserrat_14);
+    makeButton(s, "重設", 55, 95, 104, 48, colDanger(), onReset, nullptr,
+               &font_tc_16);
 
-    loadScreen(s);
+    loadScreen(s, nav);
 }
 
 }  // namespace ui

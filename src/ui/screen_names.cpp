@@ -17,8 +17,8 @@ namespace {
 constexpr const char* kPresetOptions =
     "P1\n"
     "P2\n"
-    "PLAYER 1\n"
-    "PLAYER 2\n"
+    "玩家一\n"
+    "玩家二\n"
     "WEITING\n"
     "OPPONENT\n"
     "RED\n"
@@ -81,10 +81,10 @@ lv_obj_t* makeRoller(lv_obj_t* parent, lv_coord_t dx, lv_color_t col,
     lv_obj_align(r, LV_ALIGN_CENTER, dx, -15);
     lv_obj_set_style_bg_color(r, colMuted(), LV_PART_MAIN);
     lv_obj_set_style_border_width(r, 0, LV_PART_MAIN);
-    lv_obj_set_style_text_font(r, &lv_font_montserrat_14, LV_PART_MAIN);
+    lv_obj_set_style_text_font(r, &font_tc_16, LV_PART_MAIN);
     lv_obj_set_style_text_color(r, colText(), LV_PART_MAIN);
     lv_obj_set_style_bg_color(r, col, LV_PART_SELECTED);
-    lv_obj_set_style_text_font(r, &lv_font_montserrat_14, LV_PART_SELECTED);
+    lv_obj_set_style_text_font(r, &font_tc_16, LV_PART_SELECTED);
     lv_roller_set_selected(r, indexOf(current), LV_ANIM_OFF);
     return r;
 }
@@ -96,16 +96,16 @@ void showNames() {
 
     lv_obj_t* s = makeScreen();
     lv_obj_add_event_cb(s, onScreenDel, LV_EVENT_DELETE, nullptr);
-    makeLabel(s, "PLAYERS", &lv_font_montserrat_20, colAccent(), 0, -130);
+    makeLabel(s, "玩家名稱", &font_tc_22, colAccent(), 0, -130);
 
     s_roller1 = makeRoller(s, -72, colP1(), cfg.p1Name);
     s_roller2 = makeRoller(s, 72, colP2(), cfg.p2Name);
 
-    makeButton(s, "CANCEL", -52, 105, 100, 48, colMuted(), onCancel, nullptr,
-               &lv_font_montserrat_14);
-    makeButton(s, "OK", 52, 105, 100, 48, colP2(), onOk, nullptr);
+    makeButton(s, "取消", -52, 105, 100, 48, colMuted(), onCancel, nullptr,
+               &font_tc_16);
+    makeButton(s, "確定", 52, 105, 100, 48, colP2(), onOk, nullptr);
 
-    loadScreen(s);
+    loadScreen(s, Nav::Forward);
 }
 
 }  // namespace ui

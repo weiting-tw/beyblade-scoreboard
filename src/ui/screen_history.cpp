@@ -39,16 +39,16 @@ void makeRecordRow(lv_obj_t* parent, const MatchRecord& rec) {
                   static_cast<unsigned>(rec.score2), rec.p2Name);
     lv_obj_t* l = lv_label_create(row);
     lv_label_set_text(l, buf);
-    lv_obj_set_style_text_font(l, &lv_font_montserrat_14, LV_PART_MAIN);
+    lv_obj_set_style_text_font(l, &font_tc_16, LV_PART_MAIN);
     lv_obj_set_style_text_color(l, colText(), LV_PART_MAIN);
     lv_obj_set_width(l, 178);
     lv_label_set_long_mode(l, LV_LABEL_LONG_DOT);
     lv_obj_align(l, LV_ALIGN_LEFT_MID, 12, -7);
 
-    std::snprintf(buf, sizeof(buf), "%u rounds", static_cast<unsigned>(rec.rounds));
+    std::snprintf(buf, sizeof(buf), "%u 局", static_cast<unsigned>(rec.rounds));
     lv_obj_t* sub = lv_label_create(row);
     lv_label_set_text(sub, buf);
-    lv_obj_set_style_text_font(sub, &lv_font_montserrat_14, LV_PART_MAIN);
+    lv_obj_set_style_text_font(sub, &font_tc_16, LV_PART_MAIN);
     lv_obj_set_style_text_color(sub, colSubtle(), LV_PART_MAIN);
     lv_obj_align(sub, LV_ALIGN_LEFT_MID, 12, 10);
 }
@@ -57,11 +57,11 @@ void makeRecordRow(lv_obj_t* parent, const MatchRecord& rec) {
 
 void showHistory() {
     lv_obj_t* scr = makeScreen();
-    makeLabel(scr, "HISTORY", &lv_font_montserrat_20, colAccent(), 0, -145);
+    makeLabel(scr, "歷史紀錄", &font_tc_22, colAccent(), 0, -145);
 
     const int n = g_store.historyCount();
     if (n == 0) {
-        makeLabel(scr, "NO MATCHES YET", &lv_font_montserrat_20, colSubtle(), 0, 0);
+        makeLabel(scr, "尚無紀錄", &font_tc_22, colSubtle(), 0, 0);
     } else {
         lv_obj_t* cont = lv_obj_create(scr);
         lv_obj_set_size(cont, 230, 210);
@@ -81,10 +81,10 @@ void showHistory() {
         }
     }
 
-    makeButton(scr, "BACK", 0, 128, 110, 44, colMuted(), onBack, nullptr,
-               &lv_font_montserrat_14);
+    makeButton(scr, "返回", 0, 128, 110, 44, colMuted(), onBack, nullptr,
+               &font_tc_16);
 
-    loadScreen(scr);
+    loadScreen(scr, Nav::Forward);
 }
 
 }  // namespace ui

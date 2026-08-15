@@ -42,10 +42,140 @@ lv_obj_t* makeScreen() {
     return scr;
 }
 
-void loadScreen(lv_obj_t* scr) {
+void loadScreen(lv_obj_t* scr, Nav nav) {
+    lv_scr_load_anim_t anim = LV_SCR_LOAD_ANIM_FADE_IN;
+    uint32_t ms = 220;
+
+    switch (nav) {
+        case Nav::Forward:
+            anim = LV_SCR_LOAD_ANIM_MOVE_LEFT;
+            break;
+        case Nav::Back:
+            anim = LV_SCR_LOAD_ANIM_MOVE_RIGHT;
+            break;
+        case Nav::Replace:
+            // 撤銷後重畫同一頁。任何位移都會被誤讀成「換頁了」。
+            anim = LV_SCR_LOAD_ANIM_NONE;
+            ms = 0;
+            break;
+        case Nav::Rise:
+            anim = LV_SCR_LOAD_ANIM_OVER_TOP;
+            ms = 320;
+            break;
+        case Nav::Fade:
+            anim = LV_SCR_LOAD_ANIM_FADE_IN;
+            break;
+    }
+
     // auto_del = true：舊畫面連同其子物件一併釋放。
     // LV_MEM_SIZE 只有 64KB，畫面必須用完即丟。
-    lv_scr_load_anim(scr, LV_SCR_LOAD_ANIM_FADE_IN, 180, 0, true);
+    lv_scr_load_anim(scr, anim, ms, 0, true);
+}
+
+// --- 動畫工具 -----------------------------------------------------------
+
+namespace {
+
+void execZoom(void* obj, int32_t v) {
+    lv_obj_set_style_transform_zoom(static_cast<lv_obj_t*>(obj),
+                                    static_cast<lv_coord_t>(v), LV_PART_MAIN);
+}
+
+void execOpa(void* obj, int32_t v) {
+    lv_obj_set_style_opa(static_cast<lv_obj_t*>(obj),
+                         static_cast<lv_opa_t>(v), LV_PART_MAIN);
+}
+
+void execCount(void* obj, int32_t v) {
+    lv_label_set_text_fmt(static_cast<lv_obj_t*>(obj), "%d", static_cast<int>(v));
+}
+
+void execRing(void* obj, int32_t v) {
+    lv_obj_t* o = static_cast<lv_obj_t*>(obj);
+    lv_obj_set_size(o, v, v);
+    lv_obj_center(o);
+    // 擴散到最大時完全透明，形成「往外散去」而不是「停在那裡」。
+    const int32_t fade = 255 - (v * 255) / 340;
+    lv_obj_set_style_border_opa(o, static_cast<lv_opa_t>(fade < 0 ? 0 : fade),
+                                LV_PART_MAIN);
+}
+
+}  // namespace
+
+void animPop(lv_obj_t* obj, uint16_t fromZoom, uint16_t toZoom, uint32_t ms,
+             uint32_t delay) {
+    // transform 以 pivot 為中心。pivot 預設在左上角，不校正的話物件會一邊
+    // 放大一邊往右下漂移。必須先讓 LVGL 算出尺寸才有正確的中心點。
+    lv_obj_update_layout(obj);
+    lv_obj_set_style_transform_pivot_x(obj, lv_obj_get_width(obj) / 2, LV_PART_MAIN);
+    lv_obj_set_style_transform_pivot_y(obj, lv_obj_get_height(obj) / 2, LV_PART_MAIN);
+    lv_obj_set_style_transform_zoom(obj, fromZoom, LV_PART_MAIN);
+
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, obj);
+    lv_anim_set_values(&a, fromZoom, toZoom);
+    lv_anim_set_time(&a, ms);
+    lv_anim_set_delay(&a, delay);
+    lv_anim_set_exec_cb(&a, execZoom);
+    lv_anim_set_path_cb(&a, lv_anim_path_overshoot);
+    lv_anim_start(&a);
+}
+
+void animFadeIn(lv_obj_t* obj, uint32_t ms, uint32_t delay) {
+    lv_obj_set_style_opa(obj, LV_OPA_TRANSP, LV_PART_MAIN);
+
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, obj);
+    lv_anim_set_values(&a, LV_OPA_TRANSP, LV_OPA_COVER);
+    lv_anim_set_time(&a, ms);
+    lv_anim_set_delay(&a, delay);
+    lv_anim_set_exec_cb(&a, execOpa);
+    lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+    lv_anim_start(&a);
+}
+
+void animCountUp(lv_obj_t* label, int from, int to, uint32_t ms, uint32_t delay) {
+    lv_label_set_text_fmt(label, "%d", from);
+
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, label);
+    lv_anim_set_values(&a, from, to);
+    lv_anim_set_time(&a, ms);
+    lv_anim_set_delay(&a, delay);
+    lv_anim_set_exec_cb(&a, execCount);
+    lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+    lv_anim_start(&a);
+}
+
+lv_obj_t* animRingBurst(lv_obj_t* parent, lv_color_t color, uint32_t ms,
+                        uint32_t delay) {
+    lv_obj_t* ring = lv_obj_create(parent);
+    lv_obj_set_size(ring, 60, 60);
+    lv_obj_center(ring);
+    lv_obj_set_style_bg_opa(ring, LV_OPA_TRANSP, LV_PART_MAIN);
+    lv_obj_set_style_radius(ring, LV_RADIUS_CIRCLE, LV_PART_MAIN);
+    lv_obj_set_style_border_color(ring, color, LV_PART_MAIN);
+    lv_obj_set_style_border_width(ring, 4, LV_PART_MAIN);
+    lv_obj_set_style_pad_all(ring, 0, LV_PART_MAIN);
+    lv_obj_clear_flag(ring, LV_OBJ_FLAG_SCROLLABLE);
+    // 光環純裝飾，不能吃掉底下按鈕的觸控。
+    lv_obj_clear_flag(ring, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_move_background(ring);
+
+    lv_anim_t a;
+    lv_anim_init(&a);
+    lv_anim_set_var(&a, ring);
+    lv_anim_set_values(&a, 60, 340);
+    lv_anim_set_time(&a, ms);
+    lv_anim_set_delay(&a, delay);
+    lv_anim_set_exec_cb(&a, execRing);
+    lv_anim_set_path_cb(&a, lv_anim_path_ease_out);
+    lv_anim_set_repeat_count(&a, LV_ANIM_REPEAT_INFINITE);
+    lv_anim_start(&a);
+    return ring;
 }
 
 lv_obj_t* makeLabel(lv_obj_t* parent, const char* text, const lv_font_t* font,
@@ -64,7 +194,7 @@ lv_obj_t* makeButton(lv_obj_t* parent, const char* text, lv_coord_t dx,
                      lv_color_t color, lv_event_cb_t cb, void* userData,
                      const lv_font_t* font) {
     if (font == nullptr) {
-        font = &lv_font_montserrat_20;
+        font = &font_tc_22;
     }
     if (w < kMinBtnW) {
         w = kMinBtnW;

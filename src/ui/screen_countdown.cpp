@@ -36,6 +36,8 @@ void tick(lv_timer_t*) {
         buf[0] = static_cast<char>('0' + s_value);
         buf[1] = '\0';
         lv_label_set_text(s_num, buf);
+        // 每個數字從 1.6 倍收縮到原尺寸，像是「砸」在畫面上。
+        animPop(s_num, 410, 256, 320);
         feedbackPlay(Sfx::Tick);
         feedbackHaptic(30);
         return;
@@ -44,9 +46,12 @@ void tick(lv_timer_t*) {
     if (s_value == 0) {
         lv_label_set_text(s_num, "GO!");
         lv_obj_set_style_text_color(s_num, colAccent(), LV_PART_MAIN);
+        // GO! 反過來由小放大，配合過衝路徑做出爆發感。
+        animPop(s_num, 90, 256, 420);
         if (s_arc != nullptr) {
             lv_obj_set_style_arc_color(s_arc, colAccent(), LV_PART_INDICATOR);
         }
+        animRingBurst(lv_obj_get_parent(s_num), colAccent(), 600);
         feedbackPlay(Sfx::Go);
         feedbackHaptic(120);
         return;
@@ -55,7 +60,7 @@ void tick(lv_timer_t*) {
     // GO! 顯示滿一秒後進場。
     killTimer();
     g_match.start();
-    showScore();
+    showScore(Nav::Fade);
 }
 
 }  // namespace
@@ -83,6 +88,7 @@ void showCountdown() {
     lv_obj_set_style_arc_color(s_arc, colP2(), LV_PART_INDICATOR);
 
     s_num = makeLabel(s, "3", &lv_font_montserrat_48, colText(), 0, 0);
+    animPop(s_num, 410, 256, 320);  // 第一個 3 也要有，否則第一拍會少一次
 
     // 進度環在 3 秒內走完一圈。
     lv_anim_t a;
@@ -100,7 +106,7 @@ void showCountdown() {
 
     s_timer = lv_timer_create(tick, 1000, nullptr);
 
-    loadScreen(s);
+    loadScreen(s, Nav::Fade);
 }
 
 }  // namespace ui
