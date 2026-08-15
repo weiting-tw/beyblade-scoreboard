@@ -34,3 +34,6 @@ tools/package.json
 
 # OpenSCAD 產出的 STL。原始碼是 cad/*.scad，STL 隨時可以重新 render。
 cad/out/
+
+# Meshy 產的概念圖，只是設計參考，不是可列印模型
+cad/concepts/

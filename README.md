@@ -71,7 +71,7 @@ beyblade-scoreboard/
 | Arduino ESP32 core | 3.2.0 | 與官方 `Examples/Arduino-V3.2.0` 一致 |
 | LVGL | 8.4.0 | PlatformIO registry（與官方隨附版本相同） |
 | ST77916 / CST816 驅動 | — | 官方 repo `Examples/Arduino-V3.2.0/examples/01_lvgl_demo`，原樣複製 |
-| Noto Sans CJK TC | — | 中文字型來源（OFL 授權，可嵌入）。只嵌入 103 字的子集 |
+| Noto Sans CJK TC | — | 中文字型來源（OFL 授權，可嵌入）。只嵌入實際用到的漢字子集（目前 107 字） |
 | lv_font_conv | latest | 字型子集產生器（Node，僅開發時需要） |
 | esp-sr | Arduino core 內建 | 語音辨識。模型自行打包（見 docs/VOICE.md） |
 | Unity（測試） | 2.6.1 | 僅 native 環境 |
@@ -260,7 +260,7 @@ struct MatchRecord {          // 52 bytes
 
 ## 8. 已知限制
 
-1. **新增中文字串後必須重跑 `tools/gen_fonts.py`** —— 嵌入的是 103 字的子集字型，
+1. **新增中文字串後必須重跑 `tools/gen_fonts.py`** —— 嵌入的是實際用到的漢字子集（目前 107 字，以 `tools/gen_fonts.py --list` 為準），
    沒收錄的字會在螢幕上變成空白方塊，而且**編譯不會報錯**。見下方第 13 節。
 2. **玩家名稱只能從 12 組預設中選** —— 圓形螢幕放不下可用的鍵盤。清單在 `src/ui/screen_names.cpp`。
 3. **歷史紀錄沒有時間戳** —— `timestamp` 恆為 0。RTC **硬體確實存在**（實測 0x51 有回應），
@@ -439,7 +439,7 @@ TouchPad_Version:0x00  ChipID:0xb5  ProjID:0x71  FwVersion:0x04
 ## 13. 中文字型：新增字串後必須重新產生
 
 UI 是中文的，但嵌入的**不是全字集** —— Noto Sans CJK 全字集要 1–2MB，
-這個專案只用到 81 個漢字。子集由 `tools/gen_fonts.py` 從原始碼自動掃描產生。
+這個專案目前用到 107 個漢字／全形符號（實際數量跑 `tools/gen_fonts.py --list` 會印出來）。子集由 `tools/gen_fonts.py` 從原始碼自動掃描產生。
 
 ### 何時要重跑
 
