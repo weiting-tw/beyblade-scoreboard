@@ -150,6 +150,30 @@ void onReset(lv_event_t*) {
     showConfirmOverlay("重設比賽？", doReset);
 }
 
+// 本局計時。Label 屬於畫面，畫面重建時會被 auto_del 釋放，所以 timer 必須
+// 跟著畫面一起收掉 —— 不然它會繼續對著已經釋放的記憶體寫字。
+lv_obj_t* s_clock = nullptr;
+lv_timer_t* s_clockTimer = nullptr;
+
+void updateClock(lv_timer_t*) {
+    if (s_clock == nullptr) {
+        return;
+    }
+    const uint32_t sec = roundElapsedMs() / 1000;
+    char buf[16];
+    std::snprintf(buf, sizeof(buf), "%u:%02u", static_cast<unsigned>(sec / 60),
+                  static_cast<unsigned>(sec % 60));
+    lv_label_set_text(s_clock, buf);
+}
+
+void onScoreScreenDel(lv_event_t*) {
+    if (s_clockTimer != nullptr) {
+        lv_timer_del(s_clockTimer);
+        s_clockTimer = nullptr;
+    }
+    s_clock = nullptr;
+}
+
 // 覆蓋在分數上的透明長按區。
 void makeLongPressArea(lv_obj_t* parent, lv_coord_t dx, lv_event_cb_t cb) {
     lv_obj_t* area = lv_obj_create(parent);
@@ -235,6 +259,14 @@ void showScore(Nav nav) {
     }
     makeButton(s, "重設", 55, 95, 104, 48, colDanger(), onReset, nullptr,
                &font_tc_16);
+
+    // 本局計時放最底下。dy 143、字高 19，外角距圓心 152.7，在 kSafeR 內；
+    // 用 montserrat 的數字與冒號，不新增任何中文字。
+    // colMuted 是設計來當背景的（0x2C2C3A），拿來寫字在黑底上幾乎看不見。
+    s_clock = makeLabel(s, "0:00", &lv_font_montserrat_14, colSubtle(), 0, 143);
+    lv_obj_add_event_cb(s, onScoreScreenDel, LV_EVENT_DELETE, nullptr);
+    updateClock(nullptr);
+    s_clockTimer = lv_timer_create(updateClock, 500, nullptr);
 
     loadScreen(s, nav);
     // 頂部弧帶留給這頁自己的內容，把狀態晶片收起來。

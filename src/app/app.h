@@ -18,4 +18,11 @@ void recordFinishedMatch();
 // 讀 RTC 取得 epoch 秒；讀不到回傳 0。
 uint32_t nowEpoch();
 
+// 本局計時。Spin Finish 比的就是誰轉得久，把它變成看得到的數字。
+//
+// 用 millis() 而不是 RTC：要的是經過時間，秒級的牆鐘時間解析度不夠，
+// 而且 RTC 讀一次要走 I2C。
+void markRoundStart();
+uint32_t roundElapsedMs();
+
 }  // namespace bey

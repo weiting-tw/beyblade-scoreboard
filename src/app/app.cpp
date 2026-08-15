@@ -1,5 +1,7 @@
 #include "app.h"
 
+#include <Arduino.h>
+
 #include "../drivers/pcf85063.h"
 
 #include <cstring>
@@ -14,6 +16,16 @@ void applySettingsToMatch() {
 }
 
 uint32_t nowEpoch() { return rtcNowEpoch(); }
+
+namespace {
+uint32_t s_roundStartMs = 0;
+}
+
+void markRoundStart() { s_roundStartMs = millis(); }
+
+uint32_t roundElapsedMs() {
+    return (s_roundStartMs == 0) ? 0 : (millis() - s_roundStartMs);
+}
 
 void recordFinishedMatch() {
     if (!g_match.finished()) {

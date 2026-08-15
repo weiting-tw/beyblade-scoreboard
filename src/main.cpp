@@ -87,6 +87,7 @@ void loop() {
                 // applyResult() 會直接回 false，模擬得分等於沒按。
                 bey::g_match.reset();
                 bey::g_match.start();
+                bey::markRoundStart();  // 正常流程由倒數觸發，這條捷徑要自己補
                 bey::ui::showScore();
                 break;
             case '4':

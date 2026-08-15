@@ -61,6 +61,8 @@ void tick(lv_timer_t*) {
     // GO! 顯示滿一秒後進場。
     killTimer();
     g_match.start();
+    // GO 的那一刻才是陀螺開始轉的時間。
+    markRoundStart();
     showScore(Nav::Fade);
 }
 
