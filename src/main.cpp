@@ -63,8 +63,10 @@ void loop() {
         bey::ui::handleVoiceCommand(cmd);
     }
 
+#if BEY_DEBUG_SERIAL
     // 除錯用序列埠指令。板子不在手邊時，這是唯一能確認版面實際長相的方法：
-    // 's' 把目前畫面傳回開發機，數字鍵切到指定畫面（切畫面本來要用觸控）。
+    // 's' 把目前畫面傳回開發機，數字鍵切到指定畫面，'a'/'b' 模擬得分。
+    // 正式韌體不編進去 —— 這些指令能繞過所有 UI 直接改比賽狀態。
     while (Serial.available() > 0) {
         switch (Serial.read()) {
             case 's':
@@ -113,6 +115,7 @@ void loop() {
                 break;
         }
     }
+#endif  // BEY_DEBUG_SERIAL
 
     Lvgl_Loop();
     vTaskDelay(pdMS_TO_TICKS(5));

@@ -1,5 +1,7 @@
 #include "screenshot.h"
 
+#if BEY_DEBUG_SERIAL
+
 #include <Arduino.h>
 #include <esp_heap_caps.h>
 
@@ -127,3 +129,5 @@ void screenshotCapture() {
 }
 
 }  // namespace bey
+
+#endif  // BEY_DEBUG_SERIAL

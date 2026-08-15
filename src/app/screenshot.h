@@ -13,7 +13,11 @@
 
 #include <lvgl.h>
 
+// 只在 BEY_DEBUG_SERIAL 建置中存在。正式韌體裡是 inline 空函式，
+// 連 flush 路徑上的一次呼叫都不會留下。
 namespace bey {
+
+#if BEY_DEBUG_SERIAL
 
 // 擷取一張並輸出。必須在 LVGL 執行緒上呼叫。
 // 期間會阻塞數秒（序列埠傳輸），只用於除錯。
@@ -21,5 +25,12 @@ void screenshotCapture();
 
 // 由 LVGL 的 flush callback 呼叫。非擷取中時是一個 bool 判斷就返回。
 void screenshotOnFlush(const lv_area_t* area, const lv_color_t* px);
+
+#else
+
+inline void screenshotCapture() {}
+inline void screenshotOnFlush(const lv_area_t*, const lv_color_t*) {}
+
+#endif
 
 }  // namespace bey
