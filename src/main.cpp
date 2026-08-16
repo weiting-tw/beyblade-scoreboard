@@ -16,6 +16,7 @@
 #include "app/screenshot.h"
 #include "app/sleep.h"
 #include "drivers/pcf85063.h"
+#include "ui/quick_panel.h"
 #include "ui/ui.h"
 #include "audio/audio_bus.h"
 
@@ -117,6 +118,9 @@ void loop() {
             case 'n':
                 bey::ui::showNames();
                 break;
+            case 'q':
+                bey::ui::quickPanelOpen();
+                break;
             // 把休眠逾時切成 10 秒方便驗證，再按一次切回原本的設定值。
             case 't': {
                 uint16_t& v = bey::g_store.mutableSettings().sleepSec;
@@ -174,8 +178,25 @@ void loop() {
 
         bey::Gesture g;
         while (bey::gesturePoll(g)) {
-            if (on && g == bey::Gesture::SwipeUp) {
-                bey::ui::goBack();
+            if (!on) {
+                continue;
+            }
+            if (g == bey::Gesture::SwipeDown) {
+                // 頂部下滑：叫出快設面板。比賽進行中不開 —— 那時候畫面上的
+                // 分數比調亮度重要，而且對戰中手滑的機會最高。
+                if (!bey::ui::quickPanelIsOpen() &&
+                    bey::ui::currentScreen() != bey::ui::ScreenId::Score &&
+                    bey::ui::currentScreen() != bey::ui::ScreenId::Countdown) {
+                    bey::ui::quickPanelOpen();
+                }
+            } else if (g == bey::Gesture::SwipeUp) {
+                // 面板開著時上滑先收面板，而不是退到上一頁 ——
+                // 剛拉下來的東西應該用相反的動作收掉。
+                if (bey::ui::quickPanelIsOpen()) {
+                    bey::ui::quickPanelClose();
+                } else {
+                    bey::ui::goBack();
+                }
             }
         }
     }
