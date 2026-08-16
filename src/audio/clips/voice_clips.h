@@ -1,5 +1,5 @@
 // 由 tools/gen_voice_clips.py 產生，請勿手動編輯。
-// 引擎：piper　人聲：en_US-ryan-high　慢速倍率：1.1
+// 引擎：say　人聲：Samantha　慢速倍率：1.1
 // 格式：22050Hz / 16bit / mono
 
 #pragma once

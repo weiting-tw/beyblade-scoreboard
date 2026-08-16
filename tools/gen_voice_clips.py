@@ -14,8 +14,12 @@
 piper 的 --length-scale 才是真正在拉長發音。say 保留為不想裝 piper 時的退路。
 
 輸出格式固定 22050Hz / 16bit / 單聲道，與 src/audio/audio_bus.h 的
-kAudioSampleRate 一致；改一邊就要改另一邊。22050 也正好是 piper 的原生輸出
-取樣率，因此不需要重新取樣。
+kAudioSampleRate 一致；改一邊就要改另一邊。
+
+引擎預設是 macOS 的 say（人聲 Samantha）。piper 的 en_US-ryan-high 唸短人名
+會糊成一團 —— 實測 "Emma" 只有 0.23 秒而且聽不出是什麼字，調 length_scale
+與加標點都沒用，因為那是模型對短詞的韻律預測問題，不是後處理造成的
+（去靜音一個 sample 都沒砍）。piper 保留為沒有 macOS 時的退路。
 """
 
 import argparse
@@ -63,10 +67,9 @@ CLIPS = [
     # 預設名單裡唸得出來的名字各錄一段，播報時就講名字而不是 Player One。
     # 只錄 ASCII：中文名字要換成中文 TTS 模型，跟其餘片段的人聲會對不起來。
     # 名單以外的自訂名字、以及中文名，播報時退回 Player One / Player Two。
-    # 照拼字唸會變 wee-ting，拼成 Wayting 才是對的發音。不寫成兩個詞
-    # 「Way Ting」是因為 TTS 會在詞之間插停頓，0.41s 變 0.71s，
-    # 播報時那個停頓聽得很明顯。
-    ("clip_name_weiting", "Wayting"),
+    # Wayting 這個拼法是為了修正 piper 的發音才用的（它會唸成 wee-ting）；
+    # 換成 say 之後照原拼字就唸得對了。
+    ("clip_name_weiting", "Weiting"),
     ("clip_name_yoshi", "Yoshi"),
     ("clip_name_emma", "Emma"),
     ("clip_name_wilber", "Wilber"),
@@ -204,7 +207,10 @@ def write_c(name, text, pcm, f):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--engine", choices=["piper", "say"], default="piper")
+    # 預設改用 macOS 的 say：實聽比較過同一句「Emma + Burst Finish」，
+    # piper 的 en_US-ryan-high 唸短人名會糊成一團（Emma 只有 0.23s 且聽不出
+    # 是什麼字），say 的 Samantha 清楚得多。piper 保留為沒有 macOS 時的退路。
+    ap.add_argument("--engine", choices=["piper", "say"], default="say")
     ap.add_argument("--voice", default=None,
                     help="piper 的模型名或 say 的人聲名")
     # 1.0 是模型的自然語速。拉太大會把音素整個撐開，聽起來拖沓不自然
@@ -222,7 +228,7 @@ def main():
                      f"--data-dir {PIPER_DATA_DIR} {voice}")
         synth = synth_piper
     else:
-        voice = args.voice or "Daniel"
+        voice = args.voice or "Samantha"
         synth = synth_say
 
     os.makedirs(OUT_DIR, exist_ok=True)
