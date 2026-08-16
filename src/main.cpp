@@ -14,6 +14,7 @@
 #include "app/gesture.h"
 #include "app/power.h"
 #include "app/screenshot.h"
+#include "app/sleep.h"
 #include "drivers/pcf85063.h"
 #include "ui/ui.h"
 #include "audio/audio_bus.h"
@@ -116,6 +117,13 @@ void loop() {
             case 'n':
                 bey::ui::showNames();
                 break;
+            // 把休眠逾時切成 10 秒方便驗證，再按一次切回原本的設定值。
+            case 't': {
+                uint16_t& v = bey::g_store.mutableSettings().sleepSec;
+                v = (v == 10) ? 0 : 10;
+                Serial.printf("[sleep] 逾時設為 %u 秒\n", (unsigned)v);
+                break;
+            }
             // 模擬得分，用來在沒有觸控的情況下把一場比賽跑完
             // （驗證計分流程、轉場、播報與歷史紀錄）。
             case 'a':
@@ -139,7 +147,17 @@ void loop() {
     //
     // 只在計分頁有效：倒數中按它會打斷正在跑的倒數，其他畫面則沒有
     // 「這一局」可言。
-    if (bey::buttonPressed() &&
+    // buttonPressed() 是邊緣事件，讀一次就清掉，所以只能呼叫一次。
+    const bool screenWasOff = bey::sleepScreenOff();
+    const bool btn = bey::buttonPressed();
+    if (btn) {
+        bey::sleepNoteActivity();
+    }
+    bey::sleepPoll();
+
+    // 螢幕熄著時按鍵只用來喚醒，不觸發重來 —— 跟觸控同一個道理，
+    // 摸黑按下去不該讓正在進行的一局重新開始。
+    if (btn && !screenWasOff &&
         bey::ui::currentScreen() == bey::ui::ScreenId::Score) {
         bey::ui::showCountdown();
     }

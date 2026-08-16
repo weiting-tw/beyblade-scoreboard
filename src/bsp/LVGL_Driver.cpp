@@ -7,6 +7,7 @@
 #include "LVGL_Driver.h"
 
 #include "../app/gesture.h"
+#include "../app/sleep.h"
 #include "../app/screenshot.h"
 
 static lv_disp_draw_buf_t draw_buf;
@@ -52,6 +53,21 @@ void Lvgl_Touchpad_Read( lv_indev_drv_t * indev_drv, lv_indev_data_t * data )
 #endif
   const bool down = (touch_data.points != 0x00);
   bey::touchFeed(touch_data.x, touch_data.y, down, (uint8_t)touch_data.gesture);
+
+  /* 螢幕熄掉時，第一次觸控只用來喚醒，不傳給 LVGL —— 否則摸黑點下去會誤觸
+   * 到當時畫面上的任何按鈕。喚醒本身在 sleepNoteActivity 裡做。 */
+  if (down) {
+    const bool wasOff = bey::sleepScreenOff();
+    bey::sleepNoteActivity();
+    if (wasOff) {
+      data->state = LV_INDEV_STATE_REL;
+      touch_data.x = 0;
+      touch_data.y = 0;
+      touch_data.points = 0;
+      touch_data.gesture = NONE;
+      return;
+    }
+  }
 
   if (down) {
     data->point.x = touch_data.x;

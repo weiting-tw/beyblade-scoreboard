@@ -25,6 +25,7 @@ enum class Field : uint8_t {
     Xtreme,
     Brightness,
     Volume,
+    Sleep,
     Count,
 };
 
@@ -44,6 +45,7 @@ const StepAction kSteps[] = {
     {Field::Xtreme, -1},     {Field::Xtreme, +1},
     {Field::Brightness, -5}, {Field::Brightness, +5},
     {Field::Volume, -10},    {Field::Volume, +10},
+    {Field::Sleep, -30},     {Field::Sleep, +30},
 };
 
 lv_obj_t* s_valueLabels[static_cast<int>(Field::Count)] = {nullptr};
@@ -78,6 +80,8 @@ int readField(Field f) {
             return s.brightness;
         case Field::Volume:
             return s.volume;
+        case Field::Sleep:
+            return s.sleepSec;
         default: {
             const int8_t* p = pointsOf(f, s);
             return (p != nullptr) ? *p : 0;
@@ -103,6 +107,12 @@ void writeField(Field f, int v) {
             audioBusSetVolume(s.volume);
             // 立刻播一聲，否則使用者只是在看數字變動，聽不出差別。
             feedbackPlay(Sfx::Tick);
+            break;
+        }
+        case Field::Sleep: {
+            // 30 秒一階，上限 600（十分鐘）。0 = 不自動休眠。
+            const int v2 = (v < 0) ? 0 : ((v > 600) ? 600 : v);
+            s.sleepSec = static_cast<uint16_t>(v2);
             break;
         }
         default: {
@@ -308,6 +318,8 @@ void showSettings() {
     makeStepperRow(cont, "極限勝", Field::Xtreme, 8);
     makeStepperRow(cont, "亮度", Field::Brightness, 10);
     makeStepperRow(cont, "音量", Field::Volume, 12);
+    // 單位是秒，0 = 不休眠。比賽進行中的畫面無論設多少都不會熄屏。
+    makeStepperRow(cont, "休眠秒數", Field::Sleep, 14);
 
     makeSwitchRow(cont, "音效", s.match.enableSound, onToggleSound);
     makeSwitchRow(cont, "勝利語音", s.enableAnnounce, onToggleAnnounce);
