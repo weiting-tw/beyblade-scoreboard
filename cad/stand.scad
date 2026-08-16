@@ -10,7 +10,10 @@
 // 建議流程：先印 test_ring（薄片，約十分鐘）確認 Ø 配合鬆緊，再印完整立座。
 
 /* [模式] */
-// "stand" = 完整立座；"test_ring" = 只印承接環，用來驗證直徑配合
+// "stand"     = 完整立座
+// "test_ring" = 只印承接環，驗證直徑配合與弧度
+// "cal_ring"  = 校正環：承接環外圈加寬並刻上角度刻度，用來量出開孔的實際
+//               角向位置。把本體壓進去，看它的開孔中心對到哪一格。
 mode = "stand";
 
 /* [實測值 —— 改這裡] */
@@ -34,7 +37,12 @@ floor_t      = 3.0;   // 背板厚度
 wall         = 3.0;   // 承接環外壁厚
 foot_depth   = 42.0;  // 底座前後深度。後仰越多要越深，否則會後翻。
 base_t       = 8.0;   // 底板厚度。要夠高才容得下前緣的棘齒紋
-vent_dia     = 0;     // 背板中央開孔直徑；0 = 不開
+// 背板中央開孔直徑。0 = 實心平底。
+//
+// 本體背面若是弧的（實測就是），平底會變成中間頂住、邊緣浮空 —— 板子放不
+// 到底、還會晃。中央挖空之後弧形凸起有地方去，只靠外圈一圈承接，完全不必
+// 知道曲率是多少。46 時承接環寬 (61.7-46)/2 = 7.85mm，撐得住。
+vent_dia     = 46;
 
 /* [外壁開口] */
 // "arcs" = 只保留三段支撐弧，上半部全開（不知道開孔位置時的安全選擇）
@@ -80,6 +88,12 @@ ratchet_h = 6.0;      // 齒紋帶高度，必須小於 base_t
 // 方柱中心要放在側面平面「外側」這麼多。中心剛好落在平面上的話，方柱的角
 // 會與表面零厚度接觸，切出來的 STL 帶一堆非流形邊。
 ratchet_out = 1.0;
+
+/* [校正環] */
+// 外緣加寬到這個直徑放刻度。承接環本身的壁只有 3mm，刻度擠在上面讀不出來。
+cal_outer_dia = 96;
+cal_thick = 3;      // 刻度盤厚度
+cal_tick_depth = 1.0;
 
 /* [其他] */
 $fn = 120;
@@ -130,8 +144,10 @@ module recess_cut() {
 }
 
 module vent_cut() {
+    // 往背面多挖 15mm，不是只挖穿 3mm 的背板 —— 背板後面就是 foot 的凸包
+    // 材料，只挖穿背板的話弧形凸起照樣頂到底座，等於沒挖。
     if (vent_dia > 0)
-        translate([0, 0, -1]) cylinder(h = floor_t + 2, d = vent_dia);
+        translate([0, 0, -15]) cylinder(h = floor_t + 16, d = vent_dia);
 }
 
 module gap_cuts() {
@@ -210,6 +226,40 @@ module stand() {
     }
 }
 
+// 角度刻度盤。0 度在正上方、順時針為正，與 port_cuts 的角度慣例一致。
+// 每 10 度一格、每 30 度一長格，0 度那一格特別長並額外加一條，
+// 免得數格子時數錯起點。
+module cal_ticks() {
+    r_out = cal_outer_dia / 2 - 1;
+    for (a = [0 : 10 : 359]) {
+        major = (a % 30 == 0);
+        len = (a == 0) ? 13 : (major ? 9 : 5);
+        w = major ? 1.4 : 0.9;
+        // 角度慣例轉換：0 度朝 +Y（正上方），順時針為正。
+        rotate([0, 0, 90 - a])
+            translate([r_out - len / 2, 0, cal_thick - cal_tick_depth / 2])
+                cube([len, w, cal_tick_depth + 0.1], center = true);
+    }
+    // 0 度再加一條短的並排，兩條並排的那邊就是起點。
+    rotate([0, 0, 90])
+        translate([cal_outer_dia / 2 - 5, 3.5, cal_thick - cal_tick_depth / 2])
+            cube([8, 0.9, cal_tick_depth + 0.1], center = true);
+}
+
+module cal_ring() {
+    difference() {
+        union() {
+            disc_solid();
+            // 刻度盤只做薄薄一層，貼在承接環底部往外延伸。
+            cylinder(h = cal_thick, d = cal_outer_dia);
+        }
+        recess_cut();
+        vent_cut();
+        gap_cuts();
+        cal_ticks();
+    }
+}
+
 // 驗證片：只有承接環，用來確認直徑配合鬆緊
 module test_ring() {
     difference() {
@@ -222,5 +272,6 @@ module test_ring() {
 
 // ---------------------------------------------------------------- 輸出
 
-if (mode == "test_ring") test_ring();
-else                     stand();
+if (mode == "test_ring")     test_ring();
+else if (mode == "cal_ring") cal_ring();
+else                         stand();

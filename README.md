@@ -406,6 +406,24 @@ python3 tools/gen_voice_clips.py    # 注意是系統 python3，.venv 裡沒有 
 - **螢幕壓框**：圓形螢幕的可視區與玻璃外徑不同，上蓋開孔要對可視區留 0.5mm 餘量，避免遮到邊緣像素。
 - **公差**：FDM 列印建議孔位單邊留 0.2mm、USB-C 開孔單邊留 0.3mm。第一版先印一個「只有開孔與孔位的驗證片」再印完整外殼。
 
+### 校正流程
+
+```bash
+openscad -o cad/out/test_ring.stl -D 'mode="test_ring"' cad/stand.scad
+openscad -o cad/out/cal_ring.stl  -D 'mode="cal_ring"'  cad/stand.scad
+openscad -o cad/out/stand.stl                            cad/stand.scad
+```
+
+1. **`test_ring`** —— 薄片，驗直徑配合鬆緊。太緊調大 `fit_clearance`、太鬆調小
+2. **`cal_ring`** —— 外圈加寬並刻上角度刻度，用來量開孔的實際角向位置。
+   12 點方向最長的那條（旁邊還有一條短的並排）是 0 度，每 10 度一格、
+   每 30 度加長。把本體壓進去，看它的開孔中心對到哪一格，回填 `port_cuts`
+3. **`stand`** —— 確認前兩者都對了再印，這個要三到五小時
+
+**本體背面是弧的**，所以 `vent_dia` 預設 46：凹槽中央挖空、只靠外圈一圈承接，
+弧形凸起有地方去。平底的話會變成中間頂住、邊緣浮空。挖空要往背面多挖一段
+（不只挖穿 3mm 的背板），否則後面的底座材料照樣頂到。
+
 ### 建模工具
 
 外殼是機構件，需要精確尺寸與公差，**不適合用生成式 3D（MeshyAI 那類）** ——
