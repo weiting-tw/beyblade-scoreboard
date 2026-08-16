@@ -43,3 +43,6 @@ platformio_local.ini
 
 # AI 工具的 skill 設定，與韌體無關
 .agents/
+
+# 別人的模型檔（參考用，不是我們的作品，不進版控）
+cad/*.3mf
