@@ -110,6 +110,12 @@ void loop() {
             case '9':
                 bey::ui::showWinTypeOverlay(true);
                 break;
+            case 'c':
+                bey::ui::showCountdown();
+                break;
+            case 'n':
+                bey::ui::showNames();
+                break;
             // 模擬得分，用來在沒有觸控的情況下把一場比賽跑完
             // （驗證計分流程、轉場、播報與歷史紀錄）。
             case 'a':
@@ -139,12 +145,20 @@ void loop() {
     }
 
     // 手勢。旋轉用累積格數，滑動用單一事件。
-    applyRotation(bey::gestureTakeRotation());
+    //
+    // 關掉時仍然要把事件讀空，否則重新打開的瞬間會一次湧出一堆過期手勢。
+    {
+        const bool on = bey::g_store.settings().enableGestures;
+        const int8_t rot = bey::gestureTakeRotation();
+        if (on) {
+            applyRotation(rot);
+        }
 
-    bey::Gesture g;
-    while (bey::gesturePoll(g)) {
-        if (g == bey::Gesture::SwipeUp) {
-            bey::ui::goBack();
+        bey::Gesture g;
+        while (bey::gesturePoll(g)) {
+            if (on && g == bey::Gesture::SwipeUp) {
+                bey::ui::goBack();
+            }
         }
     }
 

@@ -148,6 +148,12 @@ void onToggleSound(lv_event_t* e) {
         lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
 }
 // 「勝利語音」四個字都已經在字型子集裡（勝／利／語／音），不必重跑 gen_fonts.py。
+// 手勢會誤觸（對戰中手滑），所以給得掉的開關。這個欄位在 v5 就加了，
+// 但實作手勢時忘了讀它 —— 曾經是個撥了沒反應的假開關。
+void onToggleGestures(lv_event_t* e) {
+    g_store.mutableSettings().enableGestures =
+        lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
+}
 void onToggleAnnounce(lv_event_t* e) {
     g_store.mutableSettings().enableAnnounce =
         lv_obj_has_state(lv_event_get_target(e), LV_STATE_CHECKED);
@@ -305,6 +311,7 @@ void showSettings() {
 
     makeSwitchRow(cont, "音效", s.match.enableSound, onToggleSound);
     makeSwitchRow(cont, "勝利語音", s.enableAnnounce, onToggleAnnounce);
+    makeSwitchRow(cont, "手勢操作", s.enableGestures, onToggleGestures);
     makeSwitchRow(cont, "保存紀錄", s.match.saveHistory, onToggleHistory);
 
     makeActionRow(cont, "清除歷史紀錄", colDanger(), onClearHistory);

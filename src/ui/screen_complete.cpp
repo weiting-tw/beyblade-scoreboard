@@ -6,6 +6,7 @@
 #include <cstdio>
 
 #include "../app/app.h"
+#include "status_chip.h"
 #include "ui.h"
 #include "ui_theme.h"
 
@@ -80,6 +81,11 @@ void showComplete() {
     animFadeIn(bHome, 300, 1400);
 
     loadScreen(s, Nav::Rise);
+    // 比賽流程中的四個畫面（倒數、計分、局結果、完成）一律收起狀態晶片。
+    // 這頁的「比賽結束」在 dy -140，字框 y 26.5~53.5，跟晶片的 18.5~37.5
+    // 重疊 11px —— 實機截圖上兩者確實疊在一起。
+    // 收起來比把標題往下擠好：這是儀式性畫面，本來就該乾淨。
+    statusChipSetHidden(true);
 }
 
 }  // namespace ui
