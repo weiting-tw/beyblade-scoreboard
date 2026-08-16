@@ -63,7 +63,10 @@ CLIPS = [
     # 預設名單裡唸得出來的名字各錄一段，播報時就講名字而不是 Player One。
     # 只錄 ASCII：中文名字要換成中文 TTS 模型，跟其餘片段的人聲會對不起來。
     # 名單以外的自訂名字、以及中文名，播報時退回 Player One / Player Two。
-    ("clip_name_weiting", "Weiting"),
+    # 照拼字唸會變 wee-ting，拼成 Wayting 才是對的發音。不寫成兩個詞
+    # 「Way Ting」是因為 TTS 會在詞之間插停頓，0.41s 變 0.71s，
+    # 播報時那個停頓聽得很明顯。
+    ("clip_name_weiting", "Wayting"),
     ("clip_name_yoshi", "Yoshi"),
     ("clip_name_emma", "Emma"),
     ("clip_name_wilber", "Wilber"),
