@@ -31,6 +31,28 @@ extern const int16_t clip_xtreme[];
 extern const unsigned clip_xtreme_len;
 extern const int16_t clip_wins[];
 extern const unsigned clip_wins_len;
+extern const int16_t clip_name_weiting[];
+extern const unsigned clip_name_weiting_len;
+extern const int16_t clip_name_yoshi[];
+extern const unsigned clip_name_yoshi_len;
+extern const int16_t clip_name_emma[];
+extern const unsigned clip_name_emma_len;
+extern const int16_t clip_name_wilber[];
+extern const unsigned clip_name_wilber_len;
+extern const int16_t clip_name_opponent[];
+extern const unsigned clip_name_opponent_len;
+extern const int16_t clip_name_red[];
+extern const unsigned clip_name_red_len;
+extern const int16_t clip_name_blue[];
+extern const unsigned clip_name_blue_len;
+extern const int16_t clip_name_dragoon[];
+extern const unsigned clip_name_dragoon_len;
+extern const int16_t clip_name_dranzer[];
+extern const unsigned clip_name_dranzer_len;
+extern const int16_t clip_name_valkyrie[];
+extern const unsigned clip_name_valkyrie_len;
+extern const int16_t clip_name_guest[];
+extern const unsigned clip_name_guest_len;
 
 #ifdef __cplusplus
 }

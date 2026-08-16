@@ -36,6 +36,19 @@ enum class Voice : uint8_t {
     BurstFinish,
     XtremeFinish,
     Wins,
+    // 玩家名稱。播報時講名字比講 Player One 有臨場感 —— 只有預設名單裡
+    // 唸得出來的名字有片段，其餘（自訂名字、中文名）退回 PlayerOne/Two。
+    NameWeiting,
+    NameYoshi,
+    NameEmma,
+    NameWilber,
+    NameOpponent,
+    NameRed,
+    NameBlue,
+    NameDragoon,
+    NameDranzer,
+    NameValkyrie,
+    NameGuest,
 };
 
 void feedbackInit();
@@ -48,6 +61,10 @@ void feedbackPlay(Sfx sfx);
 //
 // 整句放同一個佇列項目而不是連送幾次：佇列只有三格，滿的時候後送的會被
 // 丟棄，分次送就可能只播出半句。enableAnnounce 為 false 時直接略過。
+// 名字對應的語音片段。沒有錄的名字回傳 Voice::None，呼叫端自行退回
+// PlayerOne / PlayerTwo。比對不分大小寫。
+Voice feedbackVoiceForName(const char* name);
+
 void feedbackAnnounce(Voice first, Voice second = Voice::None,
                       Voice third = Voice::None);
 

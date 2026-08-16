@@ -3,6 +3,7 @@
 #include <Arduino.h>
 
 #include <cmath>
+#include <cstring>
 
 #include "../audio/audio_bus.h"
 #include "../audio/clips/voice_clips.h"
@@ -131,6 +132,50 @@ bool getVoiceClip(Voice v, const int16_t** data, unsigned* len) {
         case Voice::Wins:
             *data = clip_wins;
             *len = clip_wins_len;
+            return true;
+        case Voice::NameWeiting:
+            *data = clip_name_weiting;
+            *len = clip_name_weiting_len;
+            return true;
+        case Voice::NameYoshi:
+            *data = clip_name_yoshi;
+            *len = clip_name_yoshi_len;
+            return true;
+        case Voice::NameEmma:
+            *data = clip_name_emma;
+            *len = clip_name_emma_len;
+            return true;
+        case Voice::NameWilber:
+            *data = clip_name_wilber;
+            *len = clip_name_wilber_len;
+            return true;
+        case Voice::NameOpponent:
+            *data = clip_name_opponent;
+            *len = clip_name_opponent_len;
+            return true;
+        case Voice::NameRed:
+            *data = clip_name_red;
+            *len = clip_name_red_len;
+            return true;
+        case Voice::NameBlue:
+            *data = clip_name_blue;
+            *len = clip_name_blue_len;
+            return true;
+        case Voice::NameDragoon:
+            *data = clip_name_dragoon;
+            *len = clip_name_dragoon_len;
+            return true;
+        case Voice::NameDranzer:
+            *data = clip_name_dranzer;
+            *len = clip_name_dranzer_len;
+            return true;
+        case Voice::NameValkyrie:
+            *data = clip_name_valkyrie;
+            *len = clip_name_valkyrie_len;
+            return true;
+        case Voice::NameGuest:
+            *data = clip_name_guest;
+            *len = clip_name_guest_len;
             return true;
         default:
             return false;
@@ -300,7 +345,39 @@ void audioTask(void*) {
     }
 }
 
+// 預設名單中有錄音的名字。名單以外的一律回 None。
+struct NameClip {
+    const char* name;
+    Voice voice;
+};
+
+constexpr NameClip kNameClips[] = {
+    {"WEITING", Voice::NameWeiting},
+    {"YOSHI", Voice::NameYoshi},
+    {"EMMA", Voice::NameEmma},
+    {"WILBER", Voice::NameWilber},
+    {"OPPONENT", Voice::NameOpponent},
+    {"RED", Voice::NameRed},
+    {"BLUE", Voice::NameBlue},
+    {"DRAGOON", Voice::NameDragoon},
+    {"DRANZER", Voice::NameDranzer},
+    {"VALKYRIE", Voice::NameValkyrie},
+    {"GUEST", Voice::NameGuest},
+};
+
 }  // namespace
+
+Voice feedbackVoiceForName(const char* name) {
+    if (name == nullptr) {
+        return Voice::None;
+    }
+    for (const NameClip& n : kNameClips) {
+        if (strcasecmp(name, n.name) == 0) {
+            return n.voice;
+        }
+    }
+    return Voice::None;
+}
 
 void feedbackInit() {
     if (!audioBusHasSpeaker()) {

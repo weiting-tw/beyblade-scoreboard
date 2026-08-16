@@ -59,6 +59,21 @@ CLIPS = [
     ("clip_xtreme", "Xtreme Finish"),
     # 播報 —— 比賽結束
     ("clip_wins", "Wins"),
+    # 播報 —— 玩家名稱
+    # 預設名單裡唸得出來的名字各錄一段，播報時就講名字而不是 Player One。
+    # 只錄 ASCII：中文名字要換成中文 TTS 模型，跟其餘片段的人聲會對不起來。
+    # 名單以外的自訂名字、以及中文名，播報時退回 Player One / Player Two。
+    ("clip_name_weiting", "Weiting"),
+    ("clip_name_yoshi", "Yoshi"),
+    ("clip_name_emma", "Emma"),
+    ("clip_name_wilber", "Wilber"),
+    ("clip_name_opponent", "Opponent"),
+    ("clip_name_red", "Red"),
+    ("clip_name_blue", "Blue"),
+    ("clip_name_dragoon", "Dragoon"),
+    ("clip_name_dranzer", "Dranzer"),
+    ("clip_name_valkyrie", "Valkyrie"),
+    ("clip_name_guest", "Guest"),
 ]
 
 

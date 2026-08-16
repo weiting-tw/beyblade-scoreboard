@@ -13,17 +13,24 @@ namespace ui {
 namespace {
 
 Voice announceWho(ResultType r) {
+    // 有錄到這個名字就講名字，沒有就退回 Player One / Player Two。
+    // 自訂名字與中文名沒有片段（英文 TTS 唸不出中文），走後者。
+    const MatchConfig& cfg = g_match.config();
     switch (r) {
         case ResultType::P1Spin:
         case ResultType::P1Over:
         case ResultType::P1Burst:
-        case ResultType::P1Xtreme:
-            return Voice::PlayerOne;
+        case ResultType::P1Xtreme: {
+            const Voice v = feedbackVoiceForName(cfg.p1Name);
+            return (v != Voice::None) ? v : Voice::PlayerOne;
+        }
         case ResultType::P2Spin:
         case ResultType::P2Over:
         case ResultType::P2Burst:
-        case ResultType::P2Xtreme:
-            return Voice::PlayerTwo;
+        case ResultType::P2Xtreme: {
+            const Voice v = feedbackVoiceForName(cfg.p2Name);
+            return (v != Voice::None) ? v : Voice::PlayerTwo;
+        }
         default:
             return Voice::None;  // 雙出局／無效局沒有得分者
     }
@@ -80,12 +87,20 @@ void applyResultAndAdvance(ResultType r) {
         // 決勝的那一分往往是整場最精彩的（極限勝一次三分直接結束），
         // 只播勝者等於把它吞掉。三段放同一個佇列項目，不會被拆散。
         switch (g_match.winner()) {
-            case Winner::P1:
-                feedbackAnnounce(announceWhat(r), Voice::PlayerOne, Voice::Wins);
+            case Winner::P1: {
+                const Voice v = feedbackVoiceForName(g_match.config().p1Name);
+                feedbackAnnounce(announceWhat(r),
+                                 (v != Voice::None) ? v : Voice::PlayerOne,
+                                 Voice::Wins);
                 break;
-            case Winner::P2:
-                feedbackAnnounce(announceWhat(r), Voice::PlayerTwo, Voice::Wins);
+            }
+            case Winner::P2: {
+                const Voice v = feedbackVoiceForName(g_match.config().p2Name);
+                feedbackAnnounce(announceWhat(r),
+                                 (v != Voice::None) ? v : Voice::PlayerTwo,
+                                 Voice::Wins);
                 break;
+            }
             default:
                 break;  // 平手沒有錄對應的片段，維持只有勝利音效
         }
